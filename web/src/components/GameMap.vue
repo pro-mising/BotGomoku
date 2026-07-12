@@ -43,7 +43,6 @@ export default {
 .gamemap {
     width: 100%;
     aspect-ratio: 1 / 1;
-    min-height: 420px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -53,6 +52,5 @@ canvas {
     width: 100%;
     height: 100%;
     display: block;
-    border-radius: 6px;
 }
 </style>

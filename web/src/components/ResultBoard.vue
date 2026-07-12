@@ -1,12 +1,14 @@
 <template>
     <div class="result-backdrop">
         <div class="result-board">
+            <div :class="['result-piece', winnerClass]"></div>
             <div class="result-kicker">{{ winnerText }}</div>
             <div class="result-board-text">{{ resultText }}</div>
             <div class="result-detail">{{ detailText }}</div>
+            <div class="result-divider"></div>
             <div class="result-countdown">{{ countdown }} 秒后返回匹配首页</div>
             <div class="result-board-btn">
-                <button @click="restart" type="button" class="btn btn-warning btn-lg">
+                <button @click="restart" type="button" class="result-return-btn">
                     立即返回
                 </button>
             </div>
@@ -46,6 +48,12 @@ export default {
             return winner.value === "A" ? "黑子获胜" : "白子获胜";
         });
 
+        const winnerClass = computed(() => {
+            if (winner.value === "A") return "black-piece";
+            if (winner.value === "B") return "white-piece";
+            return "draw-piece";
+        });
+
         const detailText = computed(() => {
             if (store.state.pk.result_reason === "timeout") return "一方超时未落子，系统判负。";
             if (store.state.pk.result_reason === "invalid-move") return "一方落在非法位置，系统判负。";
@@ -83,6 +91,7 @@ export default {
             winnerText,
             detailText,
             countdown,
+            winnerClass,
         }
     }
 }
@@ -92,51 +101,107 @@ export default {
 .result-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.32);
+    background: rgba(31, 23, 18, 0.36);
+    backdrop-filter: blur(2px);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 20;
+    padding: 20px;
 }
 
 .result-board {
-    width: min(430px, 88vw);
-    padding: 30px;
-    border-radius: 8px;
-    background: rgba(31, 33, 29, 0.96);
-    color: #f7f0df;
+    width: min(440px, 90vw);
+    padding: 30px 32px 28px;
+    border-radius: 14px;
+    background:
+        linear-gradient(180deg, rgba(255, 253, 249, 0.98), rgba(250, 244, 235, 0.98));
+    color: #2e2925;
     text-align: center;
-    border: 1px solid rgba(244, 201, 93, 0.34);
-    box-shadow: 0 22px 60px rgba(0, 0, 0, 0.36);
+    border: 1px solid rgba(255, 255, 255, 0.62);
+    box-shadow:
+        0 24px 70px rgba(38, 25, 18, 0.26),
+        0 2px 10px rgba(38, 25, 18, 0.10);
+}
+
+.result-piece {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 14px;
+    border-radius: 50%;
+    box-shadow:
+        0 10px 18px rgba(52, 39, 27, 0.18),
+        inset -3px -5px 8px rgba(0, 0, 0, 0.12);
+}
+
+.black-piece {
+    background: radial-gradient(circle at 35% 28%, #777 0%, #242424 42%, #050505 78%);
+}
+
+.white-piece {
+    background: radial-gradient(circle at 35% 28%, #ffffff 0%, #f4f1ea 58%, #c9c1b4 100%);
+    border: 1px solid rgba(90, 80, 69, 0.16);
+}
+
+.draw-piece {
+    background:
+        linear-gradient(90deg, #1c1c1c 0 50%, #f5f1e9 50% 100%);
+    border: 1px solid rgba(90, 80, 69, 0.16);
 }
 
 .result-kicker {
-    color: #f4c95d;
+    color: #bf781d;
     font-size: 16px;
-    font-weight: 800;
-    margin-bottom: 8px;
+    font-weight: 700;
+    margin-bottom: 6px;
 }
 
 .result-board-text {
-    font-size: 48px;
-    font-weight: 800;
+    color: #27231f;
+    font-size: 44px;
+    font-weight: 900;
     line-height: 1.1;
 }
 
 .result-detail {
-    color: #d8ccb1;
+    color: #766d64;
     font-size: 14px;
     margin-top: 12px;
     min-height: 22px;
+    line-height: 1.7;
+}
+
+.result-divider {
+    width: 100%;
+    height: 1px;
+    margin: 18px 0 12px;
+    background: rgba(105, 82, 56, 0.13);
 }
 
 .result-countdown {
-    color: #aeb7b4;
+    color: #8a8076;
     font-size: 13px;
     margin-top: 10px;
 }
 
 .result-board-btn {
-    padding-top: 22px;
+    padding-top: 18px;
+}
+
+.result-return-btn {
+    min-width: 132px;
+    min-height: 40px;
+    padding: 0 22px;
+    border: 0;
+    border-radius: 999px;
+    background: #35312c;
+    color: #f2c77d;
+    font-size: 15px;
+    font-weight: 800;
+    box-shadow: 0 7px 18px rgba(54, 41, 27, 0.18);
+}
+
+.result-return-btn:hover {
+    background: #2d2925;
 }
 </style>

@@ -133,7 +133,7 @@ export class GameMap extends AcGameObjects {
             this.ctx.canvas.height = size;
         }
         this.boardSize = size;
-        this.padding = parseInt(size * 0.075);
+        this.padding = parseInt(size * 0.09);
         this.L = (size - this.padding * 2) / (this.rows - 1);
     }
 
@@ -159,26 +159,26 @@ export class GameMap extends AcGameObjects {
     renderBoardBase(size) {
         const ctx = this.ctx;
         ctx.save();
-        ctx.fillStyle = "#f7faf8";
+        ctx.fillStyle = "#fbf6ea";
         ctx.fillRect(0, 0, size, size);
 
         const inset = Math.max(12, size * 0.022);
-        ctx.fillStyle = "rgba(34, 77, 69, 0.1)";
-        ctx.fillRect(inset + 8, inset + 9, size - inset * 2, size - inset * 2);
+        ctx.fillStyle = "rgba(83, 56, 25, 0.10)";
+        ctx.fillRect(inset + 7, inset + 8, size - inset * 2, size - inset * 2);
 
         const boardGradient = ctx.createLinearGradient(inset, inset, size - inset, size - inset);
-        boardGradient.addColorStop(0, "#f3d99e");
-        boardGradient.addColorStop(0.44, "#dfb86e");
-        boardGradient.addColorStop(1, "#c7964d");
+        boardGradient.addColorStop(0, "#f5d896");
+        boardGradient.addColorStop(0.46, "#e3b969");
+        boardGradient.addColorStop(1, "#ca9649");
         ctx.fillStyle = boardGradient;
-        ctx.shadowColor = "rgba(37, 55, 51, 0.24)";
-        ctx.shadowBlur = 20;
+        ctx.shadowColor = "rgba(57, 35, 15, 0.20)";
+        ctx.shadowBlur = 16;
         ctx.shadowOffsetY = 8;
         ctx.fillRect(inset, inset, size - inset * 2, size - inset * 2);
 
         ctx.shadowColor = "transparent";
-        ctx.strokeStyle = "rgba(87, 57, 25, 0.66)";
-        ctx.lineWidth = Math.max(2, size * 0.005);
+        ctx.strokeStyle = "rgba(91, 59, 23, 0.76)";
+        ctx.lineWidth = Math.max(2, size * 0.0048);
         ctx.strokeRect(inset + 6, inset + 6, size - (inset + 6) * 2, size - (inset + 6) * 2);
         ctx.restore();
     }
@@ -187,15 +187,17 @@ export class GameMap extends AcGameObjects {
         const ctx = this.ctx;
         const letters = "ABCDEFGHIJKLMNO";
         ctx.save();
-        ctx.fillStyle = "rgba(57, 43, 24, 0.62)";
-        ctx.font = `${Math.max(10, this.L * 0.22)}px Arial`;
+        ctx.fillStyle = "rgba(50, 35, 16, 0.86)";
+        ctx.font = `600 ${Math.max(12, this.L * 0.25)}px Arial`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
 
+        const topLabelY = Math.round(this.padding * 0.42);
+        const leftLabelX = Math.round(this.padding * 0.38);
         for (let i = 0; i < this.rows; i++) {
-            const p = this.padding + i * this.L;
-            ctx.fillText(letters[i], p, this.padding * 0.48);
-            ctx.fillText(String(i + 1), this.padding * 0.48, p);
+            const p = Math.round(this.padding + i * this.L);
+            ctx.fillText(letters[i], p, topLabelY);
+            ctx.fillText(String(i + 1), leftLabelX, p);
         }
         ctx.restore();
     }
@@ -203,8 +205,8 @@ export class GameMap extends AcGameObjects {
     renderGrid(size) {
         const ctx = this.ctx;
         ctx.save();
-        ctx.strokeStyle = "rgba(56, 38, 20, 0.58)";
-        ctx.lineWidth = Math.max(1, this.L * 0.016);
+        ctx.strokeStyle = "rgba(58, 38, 18, 0.56)";
+        ctx.lineWidth = Math.max(1, this.L * 0.014);
         for (let i = 0; i < this.rows; i++) {
             const p = this.padding + i * this.L;
             ctx.beginPath();
