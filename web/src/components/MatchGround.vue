@@ -11,7 +11,7 @@
             </div>
             <div class="col-2">
                 <div class="user-select-bot">
-                    <select v-model="select_bot" class="form-select" aria-label="Default select example">
+                    <select v-model="select_bot" class="form-select" aria-label="选择出战方式">
                         <option value="-1" selected>亲自出马</option>
                         <option v-for="bot in bots" :key="bot.id" :value="bot.id">
                             {{ bot.title }}

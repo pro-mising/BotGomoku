@@ -3,7 +3,7 @@
         <div class="arena">
             <div class="arena-topbar">
                 <div>
-                    <div class="eyebrow">Realtime Match</div>
+                    <div class="eyebrow">实时对战</div>
                     <div class="game-title">五子棋对战</div>
                 </div>
                 <div :class="['status-pill', { ready: isMyTurn }]">
@@ -65,7 +65,7 @@ export default {
 
         const me = computed(() => ({
             id: Number(store.state.user.id),
-            username: store.state.user.username || "Me",
+            username: store.state.user.username || "我",
             photo: store.state.user.photo,
         }));
 
@@ -73,7 +73,7 @@ export default {
             id: Number(store.state.pk.a_id) === Number(store.state.user.id)
                 ? Number(store.state.pk.b_id)
                 : Number(store.state.pk.a_id),
-            username: store.state.pk.opponent_username || "Opponent",
+            username: store.state.pk.opponent_username || "对手",
             photo: store.state.pk.opponent_photo,
         }));
 

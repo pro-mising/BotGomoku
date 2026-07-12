@@ -1,8 +1,10 @@
-import { createRouter, createWebHistory } from 'vue-router' //将Hash删除可以将#删除
+import { createRouter, createWebHistory } from 'vue-router'
 import PkIndexView from '@/views/pk/PkIndexView.vue'
 import RanklistIndexView from '@/views/ranklist/RanklistIndexView.vue'
 import RecordIndexView from '@/views/record/RecordIndexView.vue'
 import RecordContentView from '@/views/record/RecordContentView.vue'
+import CommunityIndexView from '@/views/community/CommunityIndexView.vue'
+import CommunityPostView from '@/views/community/CommunityPostView.vue'
 import UserBotIndexView from '@/views/user/bot/UserBotIndexView.vue'
 import NotFound from '@/views/error/NotFound.vue'
 import UserAccountLoginView from '@/views/user/account/UserAccountLoginView.vue'
@@ -19,7 +21,7 @@ const routes = [
     }
   },
   {
-    path: "/pk/", //写域名后的相对路径
+    path: "/pk/",
     name: "pk_index",
     component: PkIndexView,
     meta: {
@@ -27,7 +29,7 @@ const routes = [
     }
   },
   {
-    path: "/record/", //写域名后的相对路径
+    path: "/record/",
     name: "record_index",
     component: RecordIndexView,
     meta: {
@@ -43,7 +45,23 @@ const routes = [
     }
   },
   {
-    path: "/ranklist/", //写域名后的相对路径
+    path: "/community/",
+    name: "community_index",
+    component: CommunityIndexView,
+    meta: {
+      requestAuth: true,
+    }
+  },
+  {
+    path: "/community/post/:postId/",
+    name: "community_post",
+    component: CommunityPostView,
+    meta: {
+      requestAuth: true,
+    }
+  },
+  {
+    path: "/ranklist/",
     name: "ranklist_index",
     component: RanklistIndexView,
     meta: {
@@ -51,7 +69,7 @@ const routes = [
     }
   },
   {
-    path: "/user/bot/", //写域名后的相对路径
+    path: "/user/bot/",
     name: "user_bot_index",
     component: UserBotIndexView,
     meta: {
@@ -75,7 +93,7 @@ const routes = [
     }
   },
   {
-    path: "/404/", //写域名后的相对路径
+    path: "/404/",
     name: "404",
     component: NotFound,
     meta: {
@@ -89,7 +107,7 @@ const routes = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(), //将Hash删除可以将#删除
+  history: createWebHistory(),
   routes
 })
 
