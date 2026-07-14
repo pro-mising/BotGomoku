@@ -26,19 +26,24 @@ public class Game extends Thread {
     private String finishReason = "";
     private Integer lastMove = -1;
     private final static String addBotUrl = "http://127.0.0.1:3002/bot/add/";
+    private final static Integer HUMAN_BOT_ID = -1;
 
     public Game(Integer rows,
                 Integer cols,
                 Integer idA,
+                Integer botIdA,
                 Bot botA,
                 Integer idB,
+                Integer botIdB,
                 Bot botB
     ) {
         this.rows = rows;
         this.cols = cols;
         this.g = new int[rows][cols];
 
-        Integer botIdA = -1, botIdB = -1;
+        if (botIdA == null) botIdA = HUMAN_BOT_ID;
+        if (botIdB == null) botIdB = HUMAN_BOT_ID;
+
         String botCodeA = "", botCodeB = "";
         if (botA != null) {
             botIdA = botA.getId();
@@ -127,7 +132,7 @@ public class Game extends Thread {
     }
 
     private void sendBotCode(Player player) {
-        if (player.getBotId().equals(-1)) return;
+        if (player.getBotId().equals(HUMAN_BOT_ID)) return;
         MultiValueMap<String, String> data = new LinkedMultiValueMap<>();
         data.add("user_id", player.getId().toString());
         data.add("bot_code", player.getBotCode());

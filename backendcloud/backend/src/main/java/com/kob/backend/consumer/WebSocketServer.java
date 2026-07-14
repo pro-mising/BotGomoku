@@ -92,11 +92,11 @@ public class WebSocketServer {
 
     public static void startGame(Integer aId, Integer aBotId, Integer bId, Integer bBotId) {
         User a = userMapper.selectById(aId);
-        Bot botA = botMapper.selectById(aBotId);
+        Bot botA = aBotId != null && aBotId > 0 ? botMapper.selectById(aBotId) : null;
         User b = userMapper.selectById(bId);
-        Bot botB = botMapper.selectById(bBotId);
+        Bot botB = bBotId != null && bBotId > 0 ? botMapper.selectById(bBotId) : null;
 
-        Game game = new Game(15, 15, a.getId(), botA, b.getId(), botB);
+        Game game = new Game(15, 15, a.getId(), aBotId, botA, b.getId(), bBotId, botB);
         game.createMap();
 
         if (users.get(a.getId()) != null) users.get(a.getId()).game = game;

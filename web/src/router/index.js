@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import PkIndexView from '@/views/pk/PkIndexView.vue'
+import BotEvaluationView from '@/views/bot/BotEvaluationView.vue'
 import RanklistIndexView from '@/views/ranklist/RanklistIndexView.vue'
 import RecordIndexView from '@/views/record/RecordIndexView.vue'
 import RecordContentView from '@/views/record/RecordContentView.vue'
@@ -24,6 +25,14 @@ const routes = [
     path: "/pk/",
     name: "pk_index",
     component: PkIndexView,
+    meta: {
+      requestAuth: true,
+    }
+  },
+  {
+    path: "/bot/evaluation/",
+    name: "bot_evaluation",
+    component: BotEvaluationView,
     meta: {
       requestAuth: true,
     }

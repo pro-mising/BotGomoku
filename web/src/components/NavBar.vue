@@ -11,6 +11,9 @@
             <router-link :class="route_name === 'pk_index' ? 'nav-link active' : 'nav-link'" :to="{name: 'pk_index'}">对战</router-link>
           </li>
           <li class="nav-item">
+            <router-link :class="route_name === 'bot_evaluation' ? 'nav-link active' : 'nav-link'" :to="{name: 'bot_evaluation'}">Bot测试</router-link>
+          </li>
+          <li class="nav-item">
             <router-link :class="route_name === 'record_index' || route_name === 'record_content' ? 'nav-link active' : 'nav-link'" :to="{name: 'record_index'}">对局列表</router-link>
           </li>
           <li class="nav-item">
