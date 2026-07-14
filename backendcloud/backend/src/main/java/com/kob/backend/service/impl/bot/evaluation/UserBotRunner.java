@@ -17,7 +17,7 @@ public class UserBotRunner {
     public UserBotRunner(String code) {
         String uid = UUID.randomUUID().toString().substring(0, 8);
         String className = "com.kob.botrunningsystem.utils.Bot" + uid;
-        String source = addUid(code, uid);
+        String source = addUid(BotCodeSanitizer.sanitize(code), uid);
         this.bot = (BotInterface) Reflect.compile(className, source).create().get();
     }
 

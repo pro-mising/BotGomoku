@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.kob.backend.mapper.BotMapper;
 import com.kob.backend.pojo.Bot;
 import com.kob.backend.pojo.User;
+import com.kob.backend.service.impl.bot.evaluation.BotCodeSanitizer;
 import com.kob.backend.service.impl.utils.UserDetailsImpl;
 import com.kob.backend.service.user.bot.AddService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,7 +37,7 @@ public class AddServiceImpl implements AddService {
 
         String title = data.get("title");
         String description = data.get("description");
-        String content = data.get("content");
+        String content = BotCodeSanitizer.sanitize(data.get("content"));
 
         Map<String, String> map = new HashMap<>();
         if(title == null || title.length() == 0){

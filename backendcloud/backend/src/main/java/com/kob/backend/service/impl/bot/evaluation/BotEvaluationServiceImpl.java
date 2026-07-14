@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.kob.backend.bot.builtin.BuiltInBotFactory;
 import com.kob.backend.bot.builtin.BuiltInGomokuBot;
 import com.kob.backend.bot.builtin.GomokuBotSupport;
+import com.kob.backend.config.RabbitMQConfig;
 import com.kob.backend.mapper.BotEvaluationReportMapper;
 import com.kob.backend.mapper.BotMapper;
 import com.kob.backend.pojo.Bot;
@@ -13,6 +14,9 @@ import com.kob.backend.pojo.BotEvaluationReport;
 import com.kob.backend.pojo.User;
 import com.kob.backend.service.bot.evaluation.BotEvaluationService;
 import com.kob.backend.service.impl.utils.UserDetailsImpl;
+import org.springframework.amqp.AmqpException;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
@@ -44,6 +48,9 @@ public class BotEvaluationServiceImpl implements BotEvaluationService {
 
     @Autowired
     private RestTemplate restTemplate;
+
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
 
     @Value("${deepseek.api-key:${DEEPSEEK_API_KEY:}}")
     private String deepSeekApiKey;
@@ -117,14 +124,63 @@ public class BotEvaluationServiceImpl implements BotEvaluationService {
             return resp;
         }
 
-        String report = savedReport.getReportJson();
-        String prompt = buildDeepSeekPrompt(bot, report);
+        if ("analyzing".equals(savedReport.getAnalysisStatus())) {
+            resp.put("error_message", "success");
+            resp.put("report_id", savedReport.getId());
+            resp.put("analysis", buildAnalysisJson(savedReport));
+            resp.put("optimized_code", savedReport.getOptimizedCode());
+            return resp;
+        }
 
+        savedReport.setAnalysisStatus("analyzing");
+        savedReport.setModifytime(new Date());
+        reportMapper.updateById(savedReport);
+
+        publishDeepSeekAnalysisTask(savedReport.getId(), bot.getId());
+
+        resp.put("error_message", "success");
+        resp.put("report_id", savedReport.getId());
+        resp.put("analysis", buildAnalysisJson(savedReport));
+        resp.put("optimized_code", savedReport.getOptimizedCode());
+        return resp;
+    }
+
+    private void publishDeepSeekAnalysisTask(Integer reportId, Integer botId) {
         try {
-            savedReport.setAnalysisStatus("analyzing");
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.BOT_EVALUATION_EXCHANGE,
+                    RabbitMQConfig.DEEPSEEK_ROUTING_KEY,
+                    new DeepSeekAnalysisMessage(reportId, botId)
+            );
+        } catch (AmqpException e) {
+            Thread fallbackThread = new Thread(() -> runDeepSeekAnalysis(reportId, botId), "deepseek-bot-evaluation-fallback-" + reportId);
+            fallbackThread.start();
+        }
+    }
+
+    @RabbitListener(queues = RabbitMQConfig.DEEPSEEK_QUEUE)
+    public void consumeDeepSeekAnalysis(DeepSeekAnalysisMessage message) {
+        if (message == null || message.getReportId() == null || message.getBotId() == null) return;
+        runDeepSeekAnalysis(message.getReportId(), message.getBotId());
+    }
+
+    private void runDeepSeekAnalysis(Integer reportId, Integer botId) {
+        BotEvaluationReport savedReport = reportMapper.selectById(reportId);
+        if (savedReport == null) return;
+        Bot bot = botMapper.selectById(botId);
+        if (bot == null || !bot.getUserId().equals(savedReport.getUserId())) {
+            savedReport.setAnalysisStatus("failed");
+            savedReport.setAnalysisFindings("DeepSeek 分析失败：Bot 不存在或无权限");
+            savedReport.setAnalysisWeaknesses("");
+            savedReport.setAnalysisSuggestions("请重新完成 Bot 测评后再分析。");
             savedReport.setModifytime(new Date());
             reportMapper.updateById(savedReport);
+            return;
+        }
 
+        String prompt = buildDeepSeekPrompt(savedReport.getReportJson(), bot.getContent());
+
+        try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setBearerAuth(deepSeekApiKey);
@@ -165,18 +221,13 @@ public class BotEvaluationServiceImpl implements BotEvaluationService {
             savedReport.setOptimizedCode(parsed.getString("optimized_code"));
             savedReport.setModifytime(new Date());
             reportMapper.updateById(savedReport);
-
-            resp.put("error_message", "success");
-            resp.put("report_id", savedReport.getId());
-            resp.put("analysis", buildAnalysisJson(savedReport));
-            resp.put("optimized_code", parsed.getString("optimized_code"));
-            return resp;
         } catch (Exception e) {
             savedReport.setAnalysisStatus("failed");
+            savedReport.setAnalysisFindings("DeepSeek 分析失败：" + e.getMessage());
+            savedReport.setAnalysisWeaknesses("");
+            savedReport.setAnalysisSuggestions("请稍后重新点击 DeepSeek赛后分析。");
             savedReport.setModifytime(new Date());
             reportMapper.updateById(savedReport);
-            resp.put("error_message", "DeepSeek 分析失败：" + e.getMessage());
-            return resp;
         }
     }
 
@@ -207,7 +258,7 @@ public class BotEvaluationServiceImpl implements BotEvaluationService {
         return resp;
     }
 
-    private String buildDeepSeekPrompt(Bot bot, String report) {
+    private String buildDeepSeekPrompt(String report, String botCode) {
         return """
                 请分析下面这个五子棋 Java Bot 的测评报告和源码。
                 你需要返回严格 JSON，格式如下：
@@ -225,13 +276,16 @@ public class BotEvaluationServiceImpl implements BotEvaluationService {
                 4. 必须实现 public Integer nextMove(String input)；
                 5. 返回 0 到 224 的合法位置；
                 6. 不要使用外部依赖。
+                7. 输出 optimized_code 前必须自行检查 Java 语法、括号、import、类名、方法签名，确保代码可以在当前项目中直接编译通过。
+                8. 如果你不确定某个优化能否编译通过，就不要使用该优化，优先返回保守但可编译的完整代码。
+                9. optimized_code 只返回完整 Java 源码，不要包含 Markdown 代码围栏。
 
                 测评报告：
                 %s
 
                 原始源码：
                 %s
-                """.formatted(report, bot.getContent());
+                """.formatted(report, botCode);
     }
 
     private JSONObject parseDeepSeekContent(String content) {

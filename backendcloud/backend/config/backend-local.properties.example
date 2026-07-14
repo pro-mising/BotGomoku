@@ -1,3 +1,9 @@
 deepseek.base-url=https://api.deepseek.com
-deepseek.model=deepseek-v4-flash
+deepseek.model=deepseek-v4-pro
 deepseek.api-key=replace-with-your-deepseek-api-key
+
+spring.rabbitmq.host=10.119.6.66
+spring.rabbitmq.port=5672
+spring.rabbitmq.username=replace-with-rabbitmq-username
+spring.rabbitmq.password=replace-with-rabbitmq-password
+spring.rabbitmq.listener.simple.missing-queues-fatal=false

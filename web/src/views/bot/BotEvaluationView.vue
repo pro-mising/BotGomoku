@@ -75,7 +75,10 @@
                             {{ deepseek_running ? "分析中..." : "DeepSeek赛后分析" }}
                         </button>
                     </div>
-                    <div class="analysis-grid" v-if="hasDeepSeekAnalysis">
+                    <div class="analysis-pending" v-if="analysis_report && analysis_report.status === 'analyzing'">
+                        DeepSeek 正在分析测评数据，刷新或切换页面不会中断，请稍等。
+                    </div>
+                    <div class="analysis-grid" v-else-if="hasDeepSeekAnalysis">
                         <article class="analysis-section">
                             <span>测评发现</span>
                             <p>{{ analysis_report.findings }}</p>
@@ -89,10 +92,18 @@
                             <p>{{ analysis_report.suggestions }}</p>
                         </article>
                     </div>
+                    <div class="analysis-pending failed" v-else-if="analysis_report && analysis_report.status === 'failed'">
+                        {{ analysis_report.findings || "DeepSeek 分析失败，请稍后重试。" }}
+                    </div>
                     <p v-else>{{ report.ai_report }}</p>
                     <div class="formula">综合评分 = 胜率 40% + 防守能力 20% + 进攻能力 20% + 稳定性 10% + 效率 10%</div>
                     <div class="optimized-code" v-if="optimized_code">
-                        <h4>DeepSeek 优化后的 Bot 代码</h4>
+                        <div class="optimized-code-head">
+                            <h4>DeepSeek 优化后的 Bot 代码</h4>
+                            <button class="btn btn-outline-secondary btn-sm" @click="copyOptimizedCode">
+                                {{ copy_message || "复制纯代码" }}
+                            </button>
+                        </div>
                         <pre><code v-html="highlightedCode"></code></pre>
                     </div>
                 </section>
@@ -132,46 +143,6 @@
                 </section>
             </section>
 
-            <div class="replay-backdrop" v-if="replay_game" @click.self="closeReplay">
-                <div class="replay-modal">
-                    <div class="replay-head">
-                        <div>
-                            <h3>{{ replay_game.opponent_name }} 对局回放</h3>
-                            <p>{{ replay_game.user_side }} · {{ replay_game.result }} · 第 {{ replay_index }} / {{ replay_game.moves.length }} 手</p>
-                        </div>
-                        <button class="btn-close" type="button" aria-label="关闭" @click="closeReplay"></button>
-                    </div>
-
-                    <div class="replay-board">
-                        <div
-                            :class="['replay-cell', {
-                                'first-row': cell.row === 0,
-                                'last-row': cell.row === 14,
-                                'first-col': cell.col === 0,
-                                'last-col': cell.col === 14,
-                            }]"
-                            v-for="cell in replayCells"
-                            :key="cell.index"
-                        >
-                            <span class="star-point" v-if="cell.star"></span>
-                            <span
-                                v-if="cell.piece"
-                                :class="['replay-piece', cell.piece === 1 ? 'black' : 'white', { last: cell.step === replay_index }]"
-                            ></span>
-                        </div>
-                    </div>
-
-                    <div class="replay-controls">
-                        <button class="btn btn-outline-secondary btn-sm" @click="restartReplay">重新播放</button>
-                        <div class="replay-progress">
-                            <span :style="{ width: replayProgress + '%' }"></span>
-                        </div>
-                        <button class="btn btn-outline-secondary btn-sm" @click="toggleReplay">
-                            {{ replay_playing ? "暂停" : "继续" }}
-                        </button>
-                    </div>
-                </div>
-            </div>
         </div>
     </ContentField>
 </template>
@@ -181,6 +152,7 @@ import ContentField from "@/components/ContentField.vue";
 import { computed, onBeforeUnmount, ref } from "vue";
 import { useStore } from "vuex";
 import $ from "jquery";
+import router from "@/router";
 
 export default {
     components: {
@@ -194,13 +166,11 @@ export default {
         const report = ref(null);
         const running = ref(false);
         const error_message = ref("");
-        const replay_game = ref(null);
-        const replay_index = ref(0);
         const deepseek_running = ref(false);
         const analysis_report = ref(null);
         const optimized_code = ref("");
-        const replay_playing = ref(false);
-        let replay_timer = null;
+        const copy_message = ref("");
+        let analysis_timer = null;
 
         const authHeaders = () => ({
             Authorization: "Bearer " + store.state.user.token,
@@ -245,6 +215,7 @@ export default {
                         report.value = resp.report;
                         analysis_report.value = null;
                         optimized_code.value = "";
+                        stopAnalysisPolling();
                     } else {
                         error_message.value = resp.error_message;
                     }
@@ -274,14 +245,19 @@ export default {
                     if (resp.error_message === "success") {
                         analysis_report.value = resp.analysis;
                         optimized_code.value = resp.optimized_code;
+                        if (resp.analysis && resp.analysis.status === "analyzing") {
+                            startAnalysisPolling();
+                        } else {
+                            deepseek_running.value = false;
+                            stopAnalysisPolling();
+                        }
                     } else {
                         error_message.value = resp.error_message;
+                        deepseek_running.value = false;
                     }
                 },
                 error() {
                     error_message.value = "DeepSeek 分析请求失败";
-                },
-                complete() {
                     deepseek_running.value = false;
                 }
             });
@@ -310,8 +286,26 @@ export default {
                     selected_bot_id.value = resp.bot_id;
                     analysis_report.value = resp.analysis;
                     optimized_code.value = resp.optimized_code || "";
+                    if (resp.analysis && resp.analysis.status === "analyzing") {
+                        deepseek_running.value = true;
+                        startAnalysisPolling();
+                    } else {
+                        deepseek_running.value = false;
+                        stopAnalysisPolling();
+                    }
                 }
             });
+        };
+
+        const startAnalysisPolling = () => {
+            if (analysis_timer) return;
+            analysis_timer = setInterval(() => load_latest_report(true), 2000);
+        };
+
+        const stopAnalysisPolling = () => {
+            if (!analysis_timer) return;
+            clearInterval(analysis_timer);
+            analysis_timer = null;
         };
 
         const reasonText = reason => {
@@ -326,79 +320,43 @@ export default {
         };
 
         const openReplay = game => {
-            replay_game.value = game;
-            replay_index.value = 0;
-            startReplay();
-        };
-
-        const closeReplay = () => {
-            stopReplay();
-            replay_game.value = null;
-            replay_index.value = 0;
-        };
-
-        const stopReplay = () => {
-            if (replay_timer) {
-                clearInterval(replay_timer);
-                replay_timer = null;
-            }
-            replay_playing.value = false;
-        };
-
-        const startReplay = () => {
-            stopReplay();
-            if (!replay_game.value || replay_game.value.moves.length === 0) return;
-            replay_playing.value = true;
-            replay_timer = setInterval(() => {
-                if (!replay_game.value || replay_index.value >= replay_game.value.moves.length) {
-                    stopReplay();
-                    return;
-                }
-                replay_index.value++;
-            }, 420);
-        };
-
-        const toggleReplay = () => {
-            if (replay_playing.value) {
-                stopReplay();
-            } else {
-                if (replay_game.value && replay_index.value >= replay_game.value.moves.length) {
-                    replay_index.value = 0;
-                }
-                startReplay();
-            }
-        };
-
-        const restartReplay = () => {
-            replay_index.value = 0;
-            startReplay();
-        };
-
-        const replayProgress = computed(() => {
-            if (!replay_game.value || replay_game.value.moves.length === 0) return 0;
-            return Math.round(replay_index.value * 100 / replay_game.value.moves.length);
-        });
-
-        const replayCells = computed(() => {
-            const cells = Array.from({ length: 225 }, (_, index) => ({
-                index,
-                row: Math.floor(index / 15),
-                col: index % 15,
-                piece: 0,
-                step: 0,
-                star: [48, 56, 112, 168, 176].includes(index),
-            }));
-            if (!replay_game.value) return cells;
-            replay_game.value.moves.slice(0, replay_index.value).forEach(move => {
-                cells[move.action] = {
-                    ...cells[move.action],
-                    index: move.action,
-                    piece: move.piece,
-                    step: move.step,
-                };
+            const blackMoves = [];
+            const whiteMoves = [];
+            game.moves.forEach(move => {
+                if (move.piece === 1) blackMoves.push(move.action);
+                else whiteMoves.push(move.action);
             });
-            return cells;
-        });
+
+            const userIsBlack = game.user_side === "黑方";
+            const userId = Number(store.state.user.id);
+            const systemId = 0;
+
+            store.commit("updateIsRecord", true);
+            store.commit("updateOpponent", {
+                username: game.opponent_name || "系统Bot",
+                photo: store.state.user.photo,
+            });
+            store.commit("updateGame", {
+                a_id: userIsBlack ? userId : systemId,
+                a_sx: 0,
+                a_sy: 0,
+                b_id: userIsBlack ? systemId : userId,
+                b_sx: 0,
+                b_sy: 0,
+                current_player: userIsBlack ? userId : systemId,
+            });
+            store.commit("updateSteps", {
+                a_steps: blackMoves.join(","),
+                b_steps: whiteMoves.join(","),
+            });
+            store.commit("updateRecordLoser", game.result === "平局" ? "all" : "");
+            router.push({
+                name: "record_content",
+                params: {
+                    recordId: `bot-${report.value.report_id}-${game.opponent_name}`,
+                }
+            });
+        };
 
         const hasDeepSeekAnalysis = computed(() => {
             return analysis_report.value
@@ -419,7 +377,17 @@ export default {
                 .replace(/\b([A-Z][A-Za-z0-9_]*)\b/g, '<span class="code-type">$1</span>');
         });
 
-        onBeforeUnmount(stopReplay);
+        const copyOptimizedCode = async () => {
+            try {
+                await navigator.clipboard.writeText(optimized_code.value || "");
+                copy_message.value = "已复制";
+            } catch (e) {
+                copy_message.value = "复制失败";
+            }
+            setTimeout(() => copy_message.value = "", 1500);
+        };
+
+        onBeforeUnmount(stopAnalysisPolling);
 
         refresh_bots();
 
@@ -430,24 +398,18 @@ export default {
             report,
             running,
             error_message,
-            replay_game,
-            replay_index,
-            replayCells,
-            replay_playing,
-            replayProgress,
             deepseek_running,
             analysis_report,
             hasDeepSeekAnalysis,
             optimized_code,
+            copy_message,
             highlightedCode,
+            copyOptimizedCode,
             run_evaluation,
             run_deepseek_analysis,
             load_latest_report,
             reasonText,
             openReplay,
-            closeReplay,
-            toggleReplay,
-            restartReplay,
         };
     }
 }
@@ -660,6 +622,21 @@ h2 {
     font-size: 14px;
 }
 
+.analysis-pending {
+    padding: 14px 16px;
+    border: 1px solid rgba(191, 120, 29, 0.2);
+    border-radius: 8px;
+    background: #fff8e8;
+    color: #92400e;
+    font-weight: 800;
+}
+
+.analysis-pending.failed {
+    border-color: rgba(220, 53, 69, 0.22);
+    background: #fff1f2;
+    color: #b42334;
+}
+
 .formula {
     margin-top: 10px;
     color: #92400e;
@@ -670,8 +647,16 @@ h2 {
     margin-top: 14px;
 }
 
+.optimized-code-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
 .optimized-code h4 {
-    margin: 0 0 8px;
+    margin: 0;
     color: #0f172a;
     font-size: 15px;
     font-weight: 900;
@@ -725,163 +710,6 @@ h2 {
 .result-pill.draw {
     background: #e5e7eb;
     color: #374151;
-}
-
-.replay-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 40;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    background: rgba(31, 23, 18, 0.42);
-}
-
-.replay-modal {
-    width: min(620px, 94vw);
-    padding: 18px;
-    border-radius: 8px;
-    background: #fffdf9;
-    box-shadow: 0 24px 70px rgba(38, 25, 18, 0.26);
-}
-
-.replay-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 14px;
-}
-
-.replay-head p {
-    margin-top: 4px;
-    color: #64748b;
-}
-
-.replay-board {
-    display: grid;
-    grid-template-columns: repeat(15, 1fr);
-    width: min(540px, 84vw);
-    aspect-ratio: 1 / 1;
-    margin: 0 auto;
-    padding: 26px;
-    border: 1px solid rgba(110, 72, 27, 0.55);
-    border-radius: 8px;
-    box-shadow:
-        inset 0 0 0 6px rgba(255, 248, 232, 0.42),
-        inset 0 0 0 10px rgba(137, 92, 34, 0.18),
-        0 18px 38px rgba(64, 40, 18, 0.18);
-    background:
-        linear-gradient(90deg, rgba(119, 70, 22, 0.08), rgba(255, 242, 195, 0.2), rgba(119, 70, 22, 0.08)),
-        repeating-linear-gradient(90deg, rgba(100, 62, 22, 0.06) 0 1px, transparent 1px 18px),
-        #e8be73;
-}
-
-.replay-cell {
-    position: relative;
-    display: grid;
-    place-items: center;
-    min-width: 0;
-    min-height: 0;
-}
-
-.replay-cell::before,
-.replay-cell::after {
-    content: "";
-    position: absolute;
-    z-index: 0;
-    background: rgba(62, 43, 22, 0.52);
-}
-
-.replay-cell::before {
-    left: 0;
-    top: 50%;
-    width: 100%;
-    height: 1px;
-    transform: translateY(-50%);
-}
-
-.replay-cell::after {
-    left: 50%;
-    top: 0;
-    width: 1px;
-    height: 100%;
-    transform: translateX(-50%);
-}
-
-.replay-cell.first-col::before {
-    left: 50%;
-    width: 50%;
-}
-
-.replay-cell.last-col::before {
-    width: 50%;
-}
-
-.replay-cell.first-row::after {
-    top: 50%;
-    height: 50%;
-}
-
-.replay-cell.last-row::after {
-    height: 50%;
-}
-
-.star-point {
-    position: relative;
-    z-index: 1;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: rgba(44, 31, 17, 0.75);
-    box-shadow: 0 1px 2px rgba(255, 232, 177, 0.32);
-}
-
-.replay-piece {
-    position: relative;
-    z-index: 2;
-    width: 72%;
-    height: 72%;
-    border-radius: 50%;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.22);
-}
-
-.replay-piece.black {
-    background: radial-gradient(circle at 35% 30%, #777, #050505 72%);
-}
-
-.replay-piece.white {
-    background: radial-gradient(circle at 35% 30%, #fff, #c9c1b4 100%);
-    border: 1px solid rgba(90, 80, 69, 0.22);
-}
-
-.replay-piece.last {
-    outline: 3px solid #e45b3f;
-    outline-offset: 2px;
-}
-
-.replay-controls {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    align-items: center;
-    gap: 12px;
-    margin-top: 16px;
-}
-
-.replay-progress {
-    height: 8px;
-    overflow: hidden;
-    border-radius: 999px;
-    background: #efe4d3;
-}
-
-.replay-progress span {
-    display: block;
-    height: 100%;
-    border-radius: inherit;
-    background: linear-gradient(90deg, #d18a2d, #f0b85a);
-    transition: width 0.18s ease;
 }
 
 @media (max-width: 1000px) {
