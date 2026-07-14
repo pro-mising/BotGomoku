@@ -1,5 +1,7 @@
 package com.kob.matchingsystem.config;
 
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -35,12 +37,17 @@ import org.springframework.security.web.util.matcher.IpAddressMatcher;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+    @Value("${kob.internal-token}")
+    private String internalToken;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         AuthorizationManager<RequestAuthorizationContext> localAccessOnly = (authentication, context) -> {
-            String ip = context.getRequest().getRemoteAddr();
-            boolean allowed = "127.0.0.1".equals(ip) || "0:0:0:0:0:0:0:1".equals(ip);
+            HttpServletRequest request = context.getRequest();
+            String ip = request.getRemoteAddr();
+            boolean allowed = "127.0.0.1".equals(ip)
+                    || "0:0:0:0:0:0:0:1".equals(ip)
+                    || internalToken.equals(request.getHeader("X-Internal-Token"));
             return new AuthorizationDecision(allowed);
         };
 

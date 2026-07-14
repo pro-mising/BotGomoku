@@ -1,6 +1,8 @@
 package com.kob.backend.consumer;
 
 import com.alibaba.fastjson2.JSONObject;
+import com.kob.backend.client.BotRunningClient;
+import com.kob.backend.client.MatchingClient;
 import com.kob.backend.consumer.utils.Game;
 import com.kob.backend.consumer.utils.JwtAuthentication;
 import com.kob.backend.mapper.BotMapper;
@@ -8,6 +10,7 @@ import com.kob.backend.mapper.RecordMapper;
 import com.kob.backend.mapper.UserMapper;
 import com.kob.backend.pojo.Bot;
 import com.kob.backend.pojo.User;
+import com.kob.backend.service.impl.utils.RedisCacheService;
 import jakarta.websocket.OnClose;
 import jakarta.websocket.OnError;
 import jakarta.websocket.OnMessage;
@@ -17,9 +20,6 @@ import jakarta.websocket.server.PathParam;
 import jakarta.websocket.server.ServerEndpoint;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -35,12 +35,15 @@ public class WebSocketServer {
     public static RecordMapper recordMapper;
     public static UserMapper userMapper;
     private static BotMapper botMapper;
-    public static RestTemplate restTemplate;
+    public static BotRunningClient botRunningClient;
+    private static MatchingClient matchingClient;
+    private static RedisCacheService redisCacheService;
 
     public Game game = null;
 
-    private static final String addPlayerUrl = "http://127.0.0.1:3001/player/add/";
-    private static final String removePlayerUrl = "http://127.0.0.1:3001/player/remove/";
+    public static boolean isUserConnected(Integer userId) {
+        return userId != null && users.containsKey(userId);
+    }
 
     @Autowired
     public void setUserMapper(UserMapper userMapper) {
@@ -58,8 +61,18 @@ public class WebSocketServer {
     }
 
     @Autowired
-    public void setRestTemplate(RestTemplate restTemplate) {
-        WebSocketServer.restTemplate = restTemplate;
+    public void setMatchingClient(MatchingClient matchingClient) {
+        WebSocketServer.matchingClient = matchingClient;
+    }
+
+    @Autowired
+    public void setBotRunningClient(BotRunningClient botRunningClient) {
+        WebSocketServer.botRunningClient = botRunningClient;
+    }
+
+    @Autowired
+    public void setRedisCacheService(RedisCacheService redisCacheService) {
+        WebSocketServer.redisCacheService = redisCacheService;
     }
 
     @OnOpen
@@ -71,6 +84,7 @@ public class WebSocketServer {
 
         if (this.user != null) {
             users.put(userId, this);
+            if (redisCacheService != null) redisCacheService.markOnline(this.user);
             System.out.println("connected");
         } else {
             System.out.println("not connected");
@@ -87,6 +101,7 @@ public class WebSocketServer {
         System.out.println("disconnected");
         if (this.user != null) {
             users.remove(this.user.getId());
+            if (redisCacheService != null) redisCacheService.markOffline(this.user.getId());
         }
     }
 
@@ -130,17 +145,11 @@ public class WebSocketServer {
     }
 
     private void startMatching(Integer botId) {
-        MultiValueMap<String, String> data = new LinkedMultiValueMap<>();
-        data.add("user_id", this.user.getId().toString());
-        data.add("rating", this.user.getRating().toString());
-        data.add("bot_id", botId.toString());
-        restTemplate.postForObject(addPlayerUrl, data, String.class);
+        matchingClient.addPlayer(this.user.getId().toString(), this.user.getRating().toString(), botId.toString());
     }
 
     private void stopMatching() {
-        MultiValueMap<String, String> data = new LinkedMultiValueMap<>();
-        data.add("user_id", this.user.getId().toString());
-        restTemplate.postForObject(removePlayerUrl, data, String.class);
+        matchingClient.removePlayer(this.user.getId().toString());
     }
 
     private void move(Integer direction) {

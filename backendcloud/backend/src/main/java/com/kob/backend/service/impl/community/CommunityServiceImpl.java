@@ -4,6 +4,7 @@ import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.kob.backend.consumer.WebSocketServer;
 import com.kob.backend.mapper.CommunityCommentMapper;
 import com.kob.backend.mapper.CommunityPostLikeMapper;
 import com.kob.backend.mapper.CommunityPostMapper;
@@ -13,6 +14,7 @@ import com.kob.backend.pojo.CommunityPost;
 import com.kob.backend.pojo.CommunityPostLike;
 import com.kob.backend.pojo.User;
 import com.kob.backend.service.community.CommunityService;
+import com.kob.backend.service.impl.utils.RedisCacheService;
 import com.kob.backend.service.impl.utils.UserDetailsImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -39,6 +41,9 @@ public class CommunityServiceImpl implements CommunityService {
     @Autowired
     private UserMapper userMapper;
 
+    @Autowired
+    private RedisCacheService redisCacheService;
+
     private User currentUser() {
         UsernamePasswordAuthenticationToken authenticationToken =
                 (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
@@ -46,7 +51,7 @@ public class CommunityServiceImpl implements CommunityService {
         return loginUser.getUser();
     }
 
-    private JSONObject userJson(Integer userId) {
+    private JSONObject userJson(Integer userId, Integer viewerId) {
         User user = userMapper.selectById(userId);
         JSONObject resp = new JSONObject();
         if (user == null) {
@@ -58,7 +63,14 @@ public class CommunityServiceImpl implements CommunityService {
             resp.put("username", user.getUsername());
             resp.put("photo", user.getPhoto());
         }
+        resp.put("online", isOnline(userId, viewerId));
         return resp;
+    }
+
+    private boolean isOnline(Integer userId, Integer viewerId) {
+        if (userId == null) return false;
+        if (userId.equals(viewerId)) return true;
+        return redisCacheService.isOnline(userId) || WebSocketServer.isUserConnected(userId);
     }
 
     private JSONObject postJson(CommunityPost post, Integer viewerId) {
@@ -70,7 +82,7 @@ public class CommunityServiceImpl implements CommunityService {
         item.put("tag", post.getTag());
         item.put("likes", post.getLikes() == null ? 0 : post.getLikes());
         item.put("createtime", post.getCreatetime());
-        item.put("author", userJson(post.getUserId()));
+        item.put("author", userJson(post.getUserId(), viewerId));
         item.put("liked", isLiked(post.getId(), viewerId));
         item.put("can_delete", post.getUserId().equals(viewerId));
 
@@ -101,6 +113,7 @@ public class CommunityServiceImpl implements CommunityService {
     @Override
     public JSONObject getPostList(Integer page) {
         User user = currentUser();
+        redisCacheService.markOnline(user);
         IPage<CommunityPost> postPage = new Page<>(page, 10);
         QueryWrapper<CommunityPost> query = new QueryWrapper<>();
         query.orderByDesc("id");
@@ -120,6 +133,7 @@ public class CommunityServiceImpl implements CommunityService {
     @Override
     public JSONObject getPostDetail(Integer postId) {
         User user = currentUser();
+        redisCacheService.markOnline(user);
         CommunityPost post = postMapper.selectById(postId);
         JSONObject resp = new JSONObject();
         if (post == null) {
@@ -208,6 +222,7 @@ public class CommunityServiceImpl implements CommunityService {
     @Override
     public JSONObject getCommentList(Integer postId) {
         User user = currentUser();
+        redisCacheService.markOnline(user);
         QueryWrapper<CommunityComment> query = new QueryWrapper<>();
         query.eq("post_id", postId).orderByAsc("id");
         List<CommunityComment> comments = commentMapper.selectList(query);
@@ -220,7 +235,7 @@ public class CommunityServiceImpl implements CommunityService {
             item.put("user_id", comment.getUserId());
             item.put("content", comment.getContent());
             item.put("createtime", comment.getCreatetime());
-            item.put("author", userJson(comment.getUserId()));
+            item.put("author", userJson(comment.getUserId(), user.getId()));
             item.put("can_delete", comment.getUserId().equals(user.getId()));
             items.add(item);
         }

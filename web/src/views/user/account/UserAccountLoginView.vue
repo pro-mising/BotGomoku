@@ -9,10 +9,10 @@
                     </div>
                     <div class="mb-3">
                         <label for="password" class="form-label">密码</label>
-                        <input v-model="password" type="pasword" class="form-control" id="password" placeholder="请输入密码">
+                        <input v-model="password" type="password" class="form-control" id="password" placeholder="请输入密码">
                     </div>
                     <div class="error_message">{{ error_message }}</div>
-                    <button type="submit" class="btn btn-primary">提交</button>
+                    <button type="submit" class="btn btn-primary">登录</button>
                 </form>
             </div>
         </div>
@@ -20,10 +20,10 @@
 </template>
 
 <script>
-import ContentField from '@/components/ContentField.vue'
-import { useStore } from 'vuex';
-import { ref } from 'vue';
-import router from '@/router/index';
+import ContentField from "@/components/ContentField.vue";
+import { useStore } from "vuex";
+import { ref } from "vue";
+import router from "@/router/index";
 
 export default {
     components: {
@@ -31,52 +31,54 @@ export default {
     },
     setup() {
         const store = useStore();
-        let username = ref('');
-        let password = ref('');
-        let error_message = ref('');
+        const username = ref("");
+        const password = ref("");
+        const error_message = ref("");
 
-        const jwt_token = sessionStorage.getItem("jwt_token");
-        if(jwt_token) {
-            store.commit("updateToken", jwt_token);
-            store.dispatch("getinfo", {
-                success() {
-                    router.push({name: "home"});
-                    store.commit("updatePullingInfo", false);
-                },
-                error() {
-                    store.commit("updatePullingInfo", false);
-                }
-            })
-        } else { //或者是当本地沒有jwt_token时候也要变成true
-            store.commit("updatePullingInfo", false);
-        }
+        store.dispatch("logout");
+        store.commit("updatePullingInfo", false);
+
+        const describe_error = resp => {
+            if (!resp) return "登录失败，请检查后端服务";
+            if (resp.error_message === "request failed") {
+                return `登录接口请求失败，HTTP状态码：${resp.status || "未知"}`;
+            }
+            return resp.error_message || "用户名或密码错误";
+        };
 
         const login = () => {
             error_message.value = "";
             store.dispatch("login", {
                 username: username.value,
                 password: password.value,
-                success() {  //这是 login 成功时调用的回调函数
-                    store.dispatch("getinfo", { 
-                        success() { //这是 getinfo 成功时调用的回调函数
-                            router.push({name: 'home'}); //成功的话跳转到主页
-                        }
-                    })
+                success() {
+                    store.dispatch("getinfo", {
+                        success() {
+                            router.push({ name: "home" });
+                        },
+                        error(resp) {
+                            if (resp && resp.error_message === "request failed") {
+                                error_message.value = `登录状态获取失败，HTTP状态码：${resp.status || "未知"}`;
+                            } else {
+                                error_message.value = "登录状态获取失败，请重新登录";
+                            }
+                        },
+                    });
                 },
-                error() {
-                    error_message.value = "用户名或密码错误";
-                }
-            })
-        }
+                error(resp) {
+                    error_message.value = describe_error(resp);
+                },
+            });
+        };
 
         return {
             username,
             password,
             error_message,
             login,
-        }
-    }
-}
+        };
+    },
+};
 </script>
 
 <style scoped>

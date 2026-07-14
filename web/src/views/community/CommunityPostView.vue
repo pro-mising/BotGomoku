@@ -5,7 +5,12 @@
                 <div class="post-head">
                     <img :src="post.author.photo" alt="" class="avatar">
                     <div>
-                        <div class="author">{{ post.author.username }}</div>
+                        <div class="author-line">
+                            <span class="author">{{ post.author.username }}</span>
+                            <span :class="['presence-badge', post.author.online ? 'is-online' : 'is-offline']">
+                                <i></i>{{ post.author.online ? "在线" : "离线" }}
+                            </span>
+                        </div>
                         <div class="time">{{ post.createtime }}</div>
                     </div>
                     <span class="tag">{{ post.tag }}</span>
@@ -41,6 +46,9 @@
                     <div class="comment-body">
                         <div class="comment-head">
                             <strong>{{ comment.author.username }}</strong>
+                            <span :class="['presence-badge', comment.author.online ? 'is-online' : 'is-offline']">
+                                <i></i>{{ comment.author.online ? "在线" : "离线" }}
+                            </span>
                             <span>{{ comment.createtime }}</span>
                             <button v-if="comment.can_delete" class="btn btn-link btn-sm text-danger" @click="remove_comment(comment.id)">
                                 删除
@@ -227,6 +235,47 @@ export default {
 
 .author {
     font-weight: 800;
+}
+
+.author-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.presence-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.presence-badge i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.presence-badge.is-online {
+    color: #047857;
+    background: #d1fae5;
+}
+
+.presence-badge.is-online i {
+    background: #10b981;
+}
+
+.presence-badge.is-offline {
+    color: #64748b;
+    background: #f1f5f9;
+}
+
+.presence-badge.is-offline i {
+    background: #94a3b8;
 }
 
 .time,

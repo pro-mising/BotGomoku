@@ -25,6 +25,11 @@
         </ul>
 
         <ul class="navbar-nav" v-if="$store.state.user.is_login">
+          <li class="nav-item online-status-item">
+            <span :class="['online-status', $store.state.user.online ? 'online' : 'offline']">
+              <i></i>{{ $store.state.user.online ? "在线" : "离线" }}
+            </span>
+          </li>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               {{ $store.state.user.username }}
@@ -52,14 +57,42 @@
 
 <script>
 import { useRoute } from 'vue-router'
-import { computed } from 'vue';
+import { computed, onMounted, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
+import $ from 'jquery';
 
 export default {
   setup () {
     const route = useRoute();
     const store = useStore();
     const route_name = computed(() => route.name);
+    let online_timer = null;
+
+    const refresh_online_status = () => {
+      if (!store.state.user.is_login || !store.state.user.token) return;
+      $.ajax({
+        url: "http://127.0.0.1:3000/user/account/online/",
+        type: "GET",
+        headers: {
+          Authorization: "Bearer " + store.state.user.token,
+        },
+        success(resp) {
+          if (resp.error_message === "success") {
+            store.commit("updateOnline", resp.online);
+          }
+        }
+      });
+    };
+
+    onMounted(() => {
+      refresh_online_status();
+      online_timer = setInterval(refresh_online_status, 15000);
+    });
+
+    onUnmounted(() => {
+      if (online_timer) clearInterval(online_timer);
+    });
+
     const logout = () => {
       store.dispatch("logout");
     }
@@ -71,3 +104,36 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.online-status-item {
+  display: flex;
+  align-items: center;
+  padding-right: 10px;
+}
+
+.online-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.online-status i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.online-status.online i {
+  background: #35b879;
+  box-shadow: 0 0 0 3px rgba(53, 184, 121, 0.18);
+}
+
+.online-status.offline i {
+  background: #94a3b8;
+}
+</style>

@@ -4,4 +4,6 @@ import java.util.Map;
 
 public interface InfoService {
     public Map<String, String> getinfo();
+
+    public Map<String, String> getOnlineStatus();
 }

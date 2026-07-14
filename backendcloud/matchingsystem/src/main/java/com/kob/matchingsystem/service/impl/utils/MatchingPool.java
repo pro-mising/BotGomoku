@@ -1,10 +1,8 @@
 package com.kob.matchingsystem.service.impl.utils;
 
+import com.kob.matchingsystem.client.BackendClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,12 +12,11 @@ import java.util.concurrent.locks.ReentrantLock;
 public class MatchingPool extends Thread { //是多线程的一个类，所以要继承自Thread
     private static List<Player> players = new ArrayList<Player>();
     private final ReentrantLock lock = new ReentrantLock();
-    private static RestTemplate restTemplate;
-    private final static String startGameUrl = "http://127.0.0.1:3000/pk/start/game/";
+    private static BackendClient backendClient;
 
     @Autowired
-    public void setRestTemplate(RestTemplate restTemplate) {
-        MatchingPool.restTemplate = restTemplate;
+    public void setBackendClient(BackendClient backendClient) {
+        MatchingPool.backendClient = backendClient;
     }
 
     public void addPlayer(Integer userId, Integer rating, Integer botId) {
@@ -60,12 +57,12 @@ public class MatchingPool extends Thread { //是多线程的一个类，所以�
 
     private void sendResult(Player a, Player b) {  //返回a和b的匹配结果
         System.out.println("send result: " + a + " " + b);
-        MultiValueMap<String, String> data = new LinkedMultiValueMap<>();
-        data.add("a_id", a.getUserId().toString());
-        data.add("a_bot_id", a.getBotId().toString());
-        data.add("b_id", b.getUserId().toString());
-        data.add("b_bot_id", b.getBotId().toString());
-        restTemplate.postForEntity(startGameUrl, data, String.class); //第三个参数是返回值类的反射，第一个是url
+        backendClient.startGame(
+                a.getUserId().toString(),
+                a.getBotId().toString(),
+                b.getUserId().toString(),
+                b.getBotId().toString()
+        );
     }
 
     private void matchPlayers() { //尝试匹配所有玩家

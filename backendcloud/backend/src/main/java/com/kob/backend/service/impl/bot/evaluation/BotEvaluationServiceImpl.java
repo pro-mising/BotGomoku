@@ -13,6 +13,7 @@ import com.kob.backend.pojo.Bot;
 import com.kob.backend.pojo.BotEvaluationReport;
 import com.kob.backend.pojo.User;
 import com.kob.backend.service.bot.evaluation.BotEvaluationService;
+import com.kob.backend.service.impl.utils.RedisCacheService;
 import com.kob.backend.service.impl.utils.UserDetailsImpl;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -51,6 +52,9 @@ public class BotEvaluationServiceImpl implements BotEvaluationService {
 
     @Autowired
     private RabbitTemplate rabbitTemplate;
+
+    @Autowired
+    private RedisCacheService redisCacheService;
 
     @Value("${deepseek.api-key:${DEEPSEEK_API_KEY:}}")
     private String deepSeekApiKey;
@@ -94,6 +98,7 @@ public class BotEvaluationServiceImpl implements BotEvaluationService {
 
         JSONObject reportJson = stats.toJson();
         BotEvaluationReport savedReport = saveEvaluationReport(user, bot, mode, reportJson);
+        redisCacheService.cacheLatestEvaluationReport(user.getId(), savedReport.getId());
         reportJson.put("report_id", savedReport.getId());
 
         resp.put("error_message", "success");
@@ -235,13 +240,21 @@ public class BotEvaluationServiceImpl implements BotEvaluationService {
     public JSONObject getLatestReport(Map<String, String> data) {
         JSONObject resp = new JSONObject();
         User user = currentUser();
-        QueryWrapper<BotEvaluationReport> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("user_id", user.getId());
-        if (data.get("bot_id") != null && !data.get("bot_id").isBlank()) {
-            queryWrapper.eq("bot_id", Integer.parseInt(data.get("bot_id")));
+        boolean hasBotFilter = data.get("bot_id") != null && !data.get("bot_id").isBlank();
+        BotEvaluationReport savedReport = hasBotFilter ? null : findLatestReportFromCache(user.getId());
+
+        if (savedReport == null) {
+            QueryWrapper<BotEvaluationReport> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("user_id", user.getId());
+            if (hasBotFilter) {
+                queryWrapper.eq("bot_id", Integer.parseInt(data.get("bot_id")));
+            }
+            queryWrapper.orderByDesc("createtime").last("limit 1");
+            savedReport = reportMapper.selectOne(queryWrapper);
+            if (savedReport != null && !hasBotFilter) {
+                redisCacheService.cacheLatestEvaluationReport(user.getId(), savedReport.getId());
+            }
         }
-        queryWrapper.orderByDesc("createtime").last("limit 1");
-        BotEvaluationReport savedReport = reportMapper.selectOne(queryWrapper);
         if (savedReport == null) {
             resp.put("error_message", "empty");
             return resp;
@@ -256,6 +269,14 @@ public class BotEvaluationServiceImpl implements BotEvaluationService {
         resp.put("analysis", buildAnalysisJson(savedReport));
         resp.put("optimized_code", savedReport.getOptimizedCode());
         return resp;
+    }
+
+    private BotEvaluationReport findLatestReportFromCache(Integer userId) {
+        Integer reportId = redisCacheService.getLatestEvaluationReportId(userId);
+        if (reportId == null) return null;
+        BotEvaluationReport report = reportMapper.selectById(reportId);
+        if (report == null || !report.getUserId().equals(userId)) return null;
+        return report;
     }
 
     private String buildDeepSeekPrompt(String report, String botCode) {

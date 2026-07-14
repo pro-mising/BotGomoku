@@ -1,6 +1,8 @@
 package com.kob.backend.config;
 import com.kob.backend.config.filter.JwtAuthenticationTokenFilter;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -26,6 +28,9 @@ public class SecurityConfig {
     @Autowired
     private JwtAuthenticationTokenFilter jwtAuthenticationTokenFilter;
 
+    @Value("${kob.internal-token}")
+    private String internalToken;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -43,9 +48,12 @@ public class SecurityConfig {
                 .authorizeHttpRequests((authz) -> authz
                         .requestMatchers("/user/account/token/", "/user/account/register/","/user/bot/getlist/").permitAll() // 放行api，不需要加表头，访问其他api则需要加表头
                         .requestMatchers("/pk/start/game/","/pk/receive/bot/move/").access((authentication, context) -> {
-                            String remoteAddr = context.getRequest().getRemoteAddr();
+                            HttpServletRequest request = context.getRequest();
+                            String remoteAddr = request.getRemoteAddr();
                             System.out.println("请求来自 IP: " + remoteAddr);
-                            return new AuthorizationDecision(hasIpAddress.matches(context.getRequest()));
+                            boolean allowed = hasIpAddress.matches(request)
+                                    || internalToken.equals(request.getHeader("X-Internal-Token"));
+                            return new AuthorizationDecision(allowed);
                         })
                         .requestMatchers(HttpMethod.OPTIONS).permitAll()
                         .anyRequest().authenticated()

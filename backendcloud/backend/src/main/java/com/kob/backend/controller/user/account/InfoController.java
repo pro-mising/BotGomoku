@@ -16,4 +16,9 @@ public class InfoController {
     public Map<String,String> getInfo(){
         return infoService.getinfo();
     }
+
+    @GetMapping("/user/account/online/")
+    public Map<String,String> getOnlineStatus(){
+        return infoService.getOnlineStatus();
+    }
 }

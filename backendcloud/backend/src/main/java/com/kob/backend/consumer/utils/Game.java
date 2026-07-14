@@ -5,8 +5,6 @@ import com.kob.backend.consumer.WebSocketServer;
 import com.kob.backend.pojo.Bot;
 import com.kob.backend.pojo.Record;
 import com.kob.backend.pojo.User;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -25,7 +23,6 @@ public class Game extends Thread {
     private String loser = "";
     private String finishReason = "";
     private Integer lastMove = -1;
-    private final static String addBotUrl = "http://127.0.0.1:3002/bot/add/";
     private final static Integer HUMAN_BOT_ID = -1;
 
     public Game(Integer rows,
@@ -133,11 +130,11 @@ public class Game extends Thread {
 
     private void sendBotCode(Player player) {
         if (player.getBotId().equals(HUMAN_BOT_ID)) return;
-        MultiValueMap<String, String> data = new LinkedMultiValueMap<>();
-        data.add("user_id", player.getId().toString());
-        data.add("bot_code", player.getBotCode());
-        data.add("input", getInput(player));
-        WebSocketServer.restTemplate.postForObject(addBotUrl, data, String.class);
+        WebSocketServer.botRunningClient.addBot(
+                player.getId().toString(),
+                player.getBotCode(),
+                getInput(player)
+        );
     }
 
     private boolean nextStep() {
