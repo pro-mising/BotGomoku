@@ -7,6 +7,7 @@ import RecordContentView from '@/views/record/RecordContentView.vue'
 import CommunityIndexView from '@/views/community/CommunityIndexView.vue'
 import CommunityPostView from '@/views/community/CommunityPostView.vue'
 import UserBotIndexView from '@/views/user/bot/UserBotIndexView.vue'
+import UserProfileView from '@/views/user/profile/UserProfileView.vue'
 import NotFound from '@/views/error/NotFound.vue'
 import UserAccountLoginView from '@/views/user/account/UserAccountLoginView.vue'
 import UserAccountRegisterView from '@/views/user/account/UserAccountRegisterView.vue'
@@ -81,6 +82,14 @@ const routes = [
     path: "/user/bot/",
     name: "user_bot_index",
     component: UserBotIndexView,
+    meta: {
+      requestAuth: true,
+    }
+  },
+  {
+    path: "/user/profile/",
+    name: "user_profile",
+    component: UserProfileView,
     meta: {
       requestAuth: true,
     }

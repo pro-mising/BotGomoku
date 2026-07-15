@@ -8,12 +8,15 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.Date;
+import java.util.Set;
 
 @Service
 public class RedisCacheService {
     private static final Duration ONLINE_TTL = Duration.ofSeconds(120);
     private static final Duration LATEST_REPORT_TTL = Duration.ofMinutes(30);
+    private static final Duration RANKLIST_TTL = Duration.ofMinutes(10);
 
     @Autowired
     private StringRedisTemplate redisTemplate;
@@ -54,6 +57,47 @@ public class RedisCacheService {
             String value = redisTemplate.opsForValue().get(RedisKey.latestBotEvaluationReport(userId));
             if (value == null || value.isBlank()) return null;
             return Integer.parseInt(value);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public void cacheHotRecord(Integer recordId, double score) {
+        if (recordId == null) return;
+        try {
+            redisTemplate.opsForZSet().add(RedisKey.hotRecords(), recordId.toString(), score);
+        } catch (Exception ignored) {
+        }
+    }
+
+    public Set<String> getHotRecordIds(int limit) {
+        try {
+            Set<String> values = redisTemplate.opsForZSet().reverseRange(RedisKey.hotRecords(), 0, Math.max(0, limit - 1));
+            return values == null ? Collections.emptySet() : values;
+        } catch (Exception e) {
+            return Collections.emptySet();
+        }
+    }
+
+    public void cacheRanklist(String type, String json, String updatedAt) {
+        if (type == null || json == null) return;
+        safeSet(RedisKey.ranklistCache(type), json, RANKLIST_TTL);
+        if (updatedAt != null) safeSet(RedisKey.ranklistUpdatedAt(type), updatedAt, RANKLIST_TTL);
+    }
+
+    public String getCachedRanklist(String type) {
+        if (type == null) return null;
+        try {
+            return redisTemplate.opsForValue().get(RedisKey.ranklistCache(type));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public String getRanklistUpdatedAt(String type) {
+        if (type == null) return null;
+        try {
+            return redisTemplate.opsForValue().get(RedisKey.ranklistUpdatedAt(type));
         } catch (Exception e) {
             return null;
         }

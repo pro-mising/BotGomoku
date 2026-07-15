@@ -11,4 +11,16 @@ public class RedisKey {
     public static String latestBotEvaluationReport(Integer userId) {
         return "bot:evaluation:latest:" + userId;
     }
+
+    public static String hotRecords() {
+        return "record:hot";
+    }
+
+    public static String ranklistCache(String type) {
+        return "ranklist:cache:" + type;
+    }
+
+    public static String ranklistUpdatedAt(String type) {
+        return "ranklist:updated_at:" + type;
+    }
 }

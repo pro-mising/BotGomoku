@@ -16,6 +16,7 @@ import com.kob.backend.pojo.User;
 import com.kob.backend.service.community.CommunityService;
 import com.kob.backend.service.impl.utils.RedisCacheService;
 import com.kob.backend.service.impl.utils.UserDetailsImpl;
+import com.kob.backend.service.ranklist.GetRanklistService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -46,6 +47,9 @@ public class CommunityServiceImpl implements CommunityService {
 
     @Autowired
     private CommunitySearchService communitySearchService;
+
+    @Autowired
+    private GetRanklistService ranklistService;
 
     private User currentUser() {
         UsernamePasswordAuthenticationToken authenticationToken =
@@ -243,6 +247,7 @@ public class CommunityServiceImpl implements CommunityService {
         );
         postMapper.insert(post);
         communitySearchService.syncPost(post);
+        refreshCommunityRanklists();
         return success();
     }
 
@@ -263,6 +268,7 @@ public class CommunityServiceImpl implements CommunityService {
 
         postMapper.deleteById(postId);
         communitySearchService.deletePost(postId);
+        refreshCommunityRanklists();
         return success();
     }
 
@@ -277,6 +283,7 @@ public class CommunityServiceImpl implements CommunityService {
         post.setLikes((post.getLikes() == null ? 0 : post.getLikes()) + 1);
         postMapper.updateById(post);
         communitySearchService.syncPost(post);
+        refreshCommunityRanklists();
         return success();
     }
 
@@ -292,6 +299,7 @@ public class CommunityServiceImpl implements CommunityService {
             post.setLikes(Math.max(0, (post.getLikes() == null ? 0 : post.getLikes()) - 1));
             postMapper.updateById(post);
             communitySearchService.syncPost(post);
+            refreshCommunityRanklists();
         }
         return success();
     }
@@ -334,6 +342,7 @@ public class CommunityServiceImpl implements CommunityService {
 
         commentMapper.insert(new CommunityComment(null, postId, user.getId(), content.trim(), new Date()));
         communitySearchService.syncPost(postMapper.selectById(postId));
+        refreshCommunityRanklists();
         return success();
     }
 
@@ -345,6 +354,12 @@ public class CommunityServiceImpl implements CommunityService {
         if (!comment.getUserId().equals(user.getId())) return error("permission denied");
         commentMapper.deleteById(commentId);
         communitySearchService.syncPost(postMapper.selectById(comment.getPostId()));
+        refreshCommunityRanklists();
         return success();
+    }
+
+    private void refreshCommunityRanklists() {
+        ranklistService.requestRefresh("community");
+        ranklistService.requestRefresh("active");
     }
 }

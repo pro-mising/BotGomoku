@@ -3,8 +3,8 @@
         <div class="rank-page">
             <header class="rank-header">
                 <div>
-                    <div class="header-kicker">BotGomoku 数据榜单</div>
                     <h2>排行榜</h2>
+                    <p v-if="updated_at" class="updated-time">更新时间：{{ updated_at }}</p>
                 </div>
                 <div class="summary-chip" v-if="summary">
                     <span>{{ summary.label }}</span>
@@ -58,6 +58,9 @@
                             </template>
                             <template v-else-if="active_type === 'bot'">
                                 {{ entry.mode }} · 胜率 {{ entry.win_rate }}% · 平均 {{ entry.average_steps }} 手
+                            </template>
+                            <template v-else-if="active_type === 'active'">
+                                近7天对局 {{ entry.recent_games }} · 发帖 {{ entry.recent_posts }} · 评论 {{ entry.recent_comments }} · 点赞 {{ entry.recent_likes }}
                             </template>
                             <template v-else>
                                 发帖 {{ entry.posts }} · 获赞 {{ entry.likes_received }} · 评论 {{ entry.comments_made }}
@@ -113,6 +116,7 @@ export default {
         const store = useStore();
         const tabs = [
             { key: "ladder", title: "天梯榜", desc: "按玩家天梯分排序" },
+            { key: "active", title: "活跃榜", desc: "按近7天对局、发帖、评论和点赞排序" },
             { key: "bot", title: "Bot强度榜", desc: "按Bot测评综合评分排序" },
             { key: "community", title: "社区贡献榜", desc: "按发帖、获赞和评论贡献排序" },
         ];
@@ -120,6 +124,7 @@ export default {
         const entries = ref([]);
         const pages = ref([]);
         const summary = ref(null);
+        const updated_at = ref("");
         let current_page = 1;
         let total_count = 0;
         const page_size = 10;
@@ -128,6 +133,7 @@ export default {
         const mainLabel = computed(() => {
             if (active_type.value === "bot") return "综合评分";
             if (active_type.value === "community") return "贡献分";
+            if (active_type.value === "active") return "活跃分";
             return "天梯分";
         });
 
@@ -163,12 +169,14 @@ export default {
                     entries.value = resp.entries || [];
                     total_count = resp.total_count || 0;
                     summary.value = resp.summary || null;
+                    updated_at.value = resp.updated_at || "";
                     update_pages();
                 },
                 error() {
                     entries.value = [];
                     total_count = 0;
                     summary.value = null;
+                    updated_at.value = "";
                     update_pages();
                 }
             });
@@ -208,6 +216,7 @@ export default {
             entries,
             pages,
             summary,
+            updated_at,
             mainLabel,
             change_type,
             click_page,
@@ -246,6 +255,13 @@ h2 {
     font-weight: 900;
 }
 
+.updated-time {
+    margin: 6px 0 0;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 800;
+}
+
 .summary-chip {
     display: inline-flex;
     align-items: center;
@@ -264,7 +280,7 @@ h2 {
 
 .rank-tabs {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 10px;
 }
 
@@ -457,11 +473,20 @@ h2 {
     font-weight: 800;
 }
 
+@media (max-width: 900px) {
+    .rank-tabs {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
 @media (max-width: 760px) {
     .rank-header,
-    .rank-tabs,
     .leader-panel,
     .rank-card {
+        grid-template-columns: 1fr;
+    }
+
+    .rank-tabs {
         grid-template-columns: 1fr;
     }
 

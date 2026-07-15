@@ -20,4 +20,19 @@ public class GetRecordListController {
         Integer page = Integer.parseInt(data.get("page"));
         return getRecordListService.getList(page);
     }
+
+    @GetMapping("/record/center/list/")
+    JSONObject getCenterList(@RequestParam Map<String, String> data) {
+        return getRecordListService.getCenterList(data);
+    }
+
+    @GetMapping("/record/favorite/add/")
+    Map<String, String> addFavorite(@RequestParam Map<String, String> data) {
+        return getRecordListService.addFavorite(Integer.parseInt(data.get("record_id")));
+    }
+
+    @GetMapping("/record/favorite/remove/")
+    Map<String, String> removeFavorite(@RequestParam Map<String, String> data) {
+        return getRecordListService.removeFavorite(Integer.parseInt(data.get("record_id")));
+    }
 }

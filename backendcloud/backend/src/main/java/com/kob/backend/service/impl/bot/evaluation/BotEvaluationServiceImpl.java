@@ -16,6 +16,7 @@ import com.kob.backend.pojo.User;
 import com.kob.backend.service.bot.evaluation.BotEvaluationService;
 import com.kob.backend.service.impl.utils.RedisCacheService;
 import com.kob.backend.service.impl.utils.UserDetailsImpl;
+import com.kob.backend.service.ranklist.GetRanklistService;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -56,6 +57,9 @@ public class BotEvaluationServiceImpl implements BotEvaluationService {
 
     @Autowired
     private RedisCacheService redisCacheService;
+
+    @Autowired
+    private GetRanklistService ranklistService;
 
     @Value("${deepseek.api-key:${DEEPSEEK_API_KEY:}}")
     private String deepSeekApiKey;
@@ -100,6 +104,7 @@ public class BotEvaluationServiceImpl implements BotEvaluationService {
         JSONObject reportJson = stats.toJson();
         BotEvaluationReport savedReport = saveEvaluationReport(user, bot, mode, reportJson);
         redisCacheService.cacheLatestEvaluationReport(user.getId(), savedReport.getId());
+        ranklistService.requestRefresh("bot");
         reportJson.put("report_id", savedReport.getId());
 
         resp.put("error_message", "success");

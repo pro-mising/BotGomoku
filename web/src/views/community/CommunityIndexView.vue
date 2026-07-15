@@ -27,7 +27,6 @@
 
             <div class="search-meta" v-if="search.keyword.trim() || search.engine">
                 <span v-if="search.keyword.trim()">搜索结果：{{ search.keyword.trim() }}</span>
-                <span v-if="search.engine">搜索引擎：{{ search.engine === "elasticsearch" ? "Elasticsearch" : "MySQL备用查询" }}</span>
             </div>
 
             <section class="post-list" v-if="posts.length">

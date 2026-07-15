@@ -1,25 +1,37 @@
 package com.kob.backend.service.impl.ranklist;
 
+import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.kob.backend.config.RabbitMQConfig;
 import com.kob.backend.mapper.BotEvaluationReportMapper;
 import com.kob.backend.mapper.CommunityCommentMapper;
+import com.kob.backend.mapper.CommunityPostLikeMapper;
 import com.kob.backend.mapper.CommunityPostMapper;
 import com.kob.backend.mapper.RecordMapper;
 import com.kob.backend.mapper.UserMapper;
 import com.kob.backend.pojo.BotEvaluationReport;
 import com.kob.backend.pojo.CommunityComment;
+import com.kob.backend.pojo.CommunityPostLike;
 import com.kob.backend.pojo.CommunityPost;
 import com.kob.backend.pojo.Record;
 import com.kob.backend.pojo.User;
+import com.kob.backend.service.impl.utils.RedisCacheService;
 import com.kob.backend.service.ranklist.GetRanklistService;
+import org.springframework.amqp.AmqpException;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +40,8 @@ import java.util.Map;
 public class GetRanklistServiceImpl implements GetRanklistService {
     private static final int LEGACY_PAGE_SIZE = 3;
     private static final int PAGE_SIZE = 10;
+    private static final String[] RANK_TYPES = {"ladder", "bot", "community", "active"};
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Autowired
     private UserMapper userMapper;
@@ -43,6 +57,15 @@ public class GetRanklistServiceImpl implements GetRanklistService {
 
     @Autowired
     private CommunityCommentMapper communityCommentMapper;
+
+    @Autowired
+    private CommunityPostLikeMapper communityPostLikeMapper;
+
+    @Autowired
+    private RedisCacheService redisCacheService;
+
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
 
     @Override
     public JSONObject getList(Integer page) {
@@ -61,10 +84,84 @@ public class GetRanklistServiceImpl implements GetRanklistService {
 
     @Override
     public JSONObject getMultiList(String type, Integer page) {
-        String normalizedType = type == null ? "ladder" : type;
+        String normalizedType = normalizeType(type);
+        JSONObject cached = getCachedRanklist(normalizedType);
+        if (cached == null) {
+            cached = refreshRanklist(normalizedType);
+        }
+
+        List<JSONObject> entries = toJsonList(cached.getJSONArray("entries"));
+        JSONObject resp = new JSONObject();
+        resp.put("type", normalizedType);
+        resp.put("entries", paginate(entries, page));
+        resp.put("total_count", entries.size());
+        resp.put("summary", cached.getJSONObject("summary"));
+        resp.put("updated_at", cached.getString("updated_at"));
+        resp.put("cache", cached.getBooleanValue("cache") ? "redis" : "fresh");
+        return resp;
+    }
+
+    @Override
+    public void requestRefresh(String type) {
+        String normalizedType = normalizeType(type);
+        try {
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.RANKLIST_EXCHANGE,
+                    RabbitMQConfig.RANKLIST_REFRESH_ROUTING_KEY,
+                    new RanklistRefreshMessage(normalizedType)
+            );
+        } catch (AmqpException e) {
+            refreshRanklist(normalizedType);
+        }
+    }
+
+    @Override
+    public void requestRefreshAll() {
+        for (String type : RANK_TYPES) {
+            requestRefresh(type);
+        }
+    }
+
+    @RabbitListener(queues = RabbitMQConfig.RANKLIST_REFRESH_QUEUE)
+    public void consumeRanklistRefresh(RanklistRefreshMessage message) {
+        if (message == null || message.getType() == null || "all".equals(message.getType())) {
+            refreshAllRanklists();
+            return;
+        }
+        refreshRanklist(message.getType());
+    }
+
+    @Scheduled(fixedRate = 300000, initialDelay = 30000)
+    public void scheduledRefreshRanklists() {
+        refreshAllRanklists();
+    }
+
+    private void refreshAllRanklists() {
+        for (String type : RANK_TYPES) {
+            refreshRanklist(type);
+        }
+    }
+
+    private JSONObject getCachedRanklist(String type) {
+        String text = redisCacheService.getCachedRanklist(type);
+        if (text == null || text.isBlank()) return null;
+        try {
+            JSONObject cached = JSONObject.parseObject(text);
+            cached.put("cache", true);
+            String updatedAt = redisCacheService.getRanklistUpdatedAt(type);
+            if (updatedAt != null && !updatedAt.isBlank()) cached.put("updated_at", updatedAt);
+            return cached;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private JSONObject refreshRanklist(String type) {
+        String normalizedType = normalizeType(type);
         List<JSONObject> entries = switch (normalizedType) {
             case "bot" -> buildBotEntries();
             case "community" -> buildCommunityEntries();
+            case "active" -> buildActiveEntries();
             default -> buildLadderEntries();
         };
         entries.sort(entryComparator(normalizedType));
@@ -72,12 +169,16 @@ public class GetRanklistServiceImpl implements GetRanklistService {
             entries.get(i).put("rank", i + 1);
         }
 
-        JSONObject resp = new JSONObject();
-        resp.put("type", normalizedType);
-        resp.put("entries", paginate(entries, page));
-        resp.put("total_count", entries.size());
-        resp.put("summary", buildSummary(normalizedType, entries));
-        return resp;
+        String updatedAt = LocalDateTime.now().format(TIME_FORMATTER);
+        JSONObject cacheValue = new JSONObject();
+        cacheValue.put("type", normalizedType);
+        cacheValue.put("entries", entries);
+        cacheValue.put("total_count", entries.size());
+        cacheValue.put("summary", buildSummary(normalizedType, entries));
+        cacheValue.put("updated_at", updatedAt);
+        cacheValue.put("cache", false);
+        redisCacheService.cacheRanklist(normalizedType, cacheValue.toJSONString(), updatedAt);
+        return cacheValue;
     }
 
     private List<JSONObject> buildLadderEntries() {
@@ -92,8 +193,8 @@ public class GetRanklistServiceImpl implements GetRanklistService {
             item.put("wins", stats.wins);
             item.put("win_rate", stats.games == 0 ? 0 : round(stats.wins * 100.0 / stats.games));
             item.put("main_value", item.getInteger("rating"));
-            item.put("sub_value", item.getDoubleValue("win_rate") + "%胜率");
-            returnItemLabel(item, "天梯分");
+            item.put("sub_value", item.getDoubleValue("win_rate") + "% 胜率");
+            item.put("main_label", "天梯分");
             entries.add(item);
         }
         return entries;
@@ -127,8 +228,8 @@ public class GetRanklistServiceImpl implements GetRanklistService {
             item.put("average_steps", metrics.getDoubleValue("average_steps"));
             item.put("evaluated_at", report.getCreatetime());
             item.put("main_value", score);
-            item.put("sub_value", metrics.getDoubleValue("win_rate") + "%胜率");
-            returnItemLabel(item, "综合评分");
+            item.put("sub_value", metrics.getDoubleValue("win_rate") + "% 胜率");
+            item.put("main_label", "综合评分");
             bestByBot.put(report.getBotId(), item);
         }
         return new ArrayList<>(bestByBot.values());
@@ -162,11 +263,57 @@ public class GetRanklistServiceImpl implements GetRanklistService {
             item.put("comments_received", commentsReceived);
             item.put("comments_made", commentsMade);
             item.put("main_value", contributionScore);
-            item.put("sub_value", posts.size() + "篇帖子");
-            returnItemLabel(item, "贡献分");
+            item.put("sub_value", posts.size() + " 篇帖子");
+            item.put("main_label", "贡献分");
             entries.add(item);
         }
         return entries;
+    }
+
+    private List<JSONObject> buildActiveEntries() {
+        List<User> users = userMapper.selectList(null);
+        List<Record> records = recordMapper.selectList(null);
+        List<CommunityPost> posts = communityPostMapper.selectList(null);
+        List<CommunityComment> comments = communityCommentMapper.selectList(null);
+        List<CommunityPostLike> likes = communityPostLikeMapper.selectList(null);
+        long cutoff = System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000;
+        List<JSONObject> entries = new ArrayList<>();
+
+        for (User user : users) {
+            int recentGames = 0;
+            int recentPosts = 0;
+            int recentComments = 0;
+            int recentLikes = 0;
+            for (Record record : records) {
+                if (!afterCutoff(record.getCreatetime(), cutoff)) continue;
+                if (user.getId().equals(record.getAId()) || user.getId().equals(record.getBId())) recentGames++;
+            }
+            for (CommunityPost post : posts) {
+                if (user.getId().equals(post.getUserId()) && afterCutoff(post.getCreatetime(), cutoff)) recentPosts++;
+            }
+            for (CommunityComment comment : comments) {
+                if (user.getId().equals(comment.getUserId()) && afterCutoff(comment.getCreatetime(), cutoff)) recentComments++;
+            }
+            for (CommunityPostLike like : likes) {
+                if (user.getId().equals(like.getUserId()) && afterCutoff(like.getCreatetime(), cutoff)) recentLikes++;
+            }
+
+            int activeScore = recentGames * 15 + recentPosts * 10 + recentComments * 5 + recentLikes * 2;
+            JSONObject item = baseUserJson(user);
+            item.put("recent_games", recentGames);
+            item.put("recent_posts", recentPosts);
+            item.put("recent_comments", recentComments);
+            item.put("recent_likes", recentLikes);
+            item.put("main_value", activeScore);
+            item.put("sub_value", "近7天活跃");
+            item.put("main_label", "活跃分");
+            entries.add(item);
+        }
+        return entries;
+    }
+
+    private boolean afterCutoff(Date time, long cutoff) {
+        return time != null && time.getTime() >= cutoff;
     }
 
     private LadderStats calculateLadderStats(Integer userId, List<Record> records) {
@@ -206,6 +353,7 @@ public class GetRanklistServiceImpl implements GetRanklistService {
         summary.put("label", switch (type) {
             case "bot" -> "Bot强度榜";
             case "community" -> "社区贡献榜";
+            case "active" -> "活跃榜";
             default -> "天梯排行榜";
         });
         return summary;
@@ -233,12 +381,32 @@ public class GetRanklistServiceImpl implements GetRanklistService {
         }
     }
 
-    private double round(double value) {
-        return Math.round(value * 10.0) / 10.0;
+    private List<JSONObject> toJsonList(JSONArray array) {
+        List<JSONObject> list = new ArrayList<>();
+        if (array == null) return list;
+        for (Object item : array) {
+            if (item instanceof JSONObject jsonObject) {
+                list.add(jsonObject);
+            } else {
+                try {
+                    list.add(JSONObject.parseObject(JSONObject.toJSONString(item)));
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        return list;
     }
 
-    private void returnItemLabel(JSONObject item, String label) {
-        item.put("main_label", label);
+    private String normalizeType(String type) {
+        if (type == null || type.isBlank()) return "ladder";
+        for (String rankType : RANK_TYPES) {
+            if (rankType.equals(type)) return type;
+        }
+        return "ladder";
+    }
+
+    private double round(double value) {
+        return Math.round(value * 10.0) / 10.0;
     }
 
     private static class LadderStats {

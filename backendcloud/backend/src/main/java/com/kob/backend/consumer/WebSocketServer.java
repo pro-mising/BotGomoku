@@ -11,6 +11,8 @@ import com.kob.backend.mapper.UserMapper;
 import com.kob.backend.pojo.Bot;
 import com.kob.backend.pojo.User;
 import com.kob.backend.service.impl.utils.RedisCacheService;
+import com.kob.backend.service.impl.record.RecordAnalysisService;
+import com.kob.backend.service.ranklist.GetRanklistService;
 import jakarta.websocket.OnClose;
 import jakarta.websocket.OnError;
 import jakarta.websocket.OnMessage;
@@ -38,6 +40,8 @@ public class WebSocketServer {
     public static BotRunningClient botRunningClient;
     private static MatchingClient matchingClient;
     private static RedisCacheService redisCacheService;
+    public static RecordAnalysisService recordAnalysisService;
+    public static GetRanklistService ranklistService;
 
     public Game game = null;
 
@@ -73,6 +77,16 @@ public class WebSocketServer {
     @Autowired
     public void setRedisCacheService(RedisCacheService redisCacheService) {
         WebSocketServer.redisCacheService = redisCacheService;
+    }
+
+    @Autowired
+    public void setRecordAnalysisService(RecordAnalysisService recordAnalysisService) {
+        WebSocketServer.recordAnalysisService = recordAnalysisService;
+    }
+
+    @Autowired
+    public void setRanklistService(GetRanklistService ranklistService) {
+        WebSocketServer.ranklistService = ranklistService;
     }
 
     @OnOpen

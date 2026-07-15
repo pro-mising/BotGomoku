@@ -275,6 +275,13 @@ public class Game extends Thread {
         );
 
         WebSocketServer.recordMapper.insert(record);
+        if (WebSocketServer.recordAnalysisService != null) {
+            WebSocketServer.recordAnalysisService.publish(record.getId());
+        }
+        if (WebSocketServer.ranklistService != null) {
+            WebSocketServer.ranklistService.requestRefresh("ladder");
+            WebSocketServer.ranklistService.requestRefresh("active");
+        }
     }
 
     private void sendResult() {
