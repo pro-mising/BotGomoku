@@ -116,10 +116,19 @@ public class WebSocketServer {
         if (this.user != null) {
             users.remove(this.user.getId());
             if (redisCacheService != null) redisCacheService.markOffline(this.user.getId());
+            try {
+                matchingClient.removePlayer(this.user.getId().toString());
+            } catch (Exception ignored) {
+            }
         }
     }
 
     public static void startGame(Integer aId, Integer aBotId, Integer bId, Integer bBotId) {
+        if (!isUserConnected(aId) || !isUserConnected(bId)) {
+            System.out.println("start game skipped because player websocket is offline: " + aId + " " + bId);
+            return;
+        }
+
         User a = userMapper.selectById(aId);
         Bot botA = aBotId != null && aBotId > 0 ? botMapper.selectById(aBotId) : null;
         User b = userMapper.selectById(bId);

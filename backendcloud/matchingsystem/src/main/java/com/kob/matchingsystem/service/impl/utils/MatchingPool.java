@@ -22,6 +22,7 @@ public class MatchingPool extends Thread { //是多线程的一个类，所以�
     public void addPlayer(Integer userId, Integer rating, Integer botId) {
         lock.lock();
         try {
+            players.removeIf(player -> player.getUserId().equals(userId));
             players.add(new Player(userId, rating, botId,0));
         } finally {
             lock.unlock();
