@@ -20,4 +20,11 @@ public class GetRanklistController {
         Integer  page = Integer.parseInt(data.get("page"));
         return getRanklistService.getList(page);
     }
+
+    @GetMapping("/ranklist/multilist/")
+    public JSONObject getMultiList(@RequestParam Map<String, String> data) {
+        String type = data.getOrDefault("type", "ladder");
+        Integer page = Integer.parseInt(data.getOrDefault("page", "1"));
+        return getRanklistService.getMultiList(type, page);
+    }
 }

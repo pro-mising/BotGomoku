@@ -21,6 +21,11 @@ public class CommunityController {
         return communityService.getPostList(page);
     }
 
+    @GetMapping("/community/post/search/")
+    public JSONObject searchPostList(@RequestParam Map<String, String> data) {
+        return communityService.searchPostList(data);
+    }
+
     @GetMapping("/community/post/detail/")
     public JSONObject getPostDetail(@RequestParam Map<String, String> data) {
         Integer postId = Integer.parseInt(data.get("post_id"));

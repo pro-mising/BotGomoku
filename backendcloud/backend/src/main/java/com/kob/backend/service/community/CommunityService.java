@@ -6,6 +6,7 @@ import java.util.Map;
 
 public interface CommunityService {
     JSONObject getPostList(Integer page);
+    JSONObject searchPostList(Map<String, String> data);
     JSONObject getPostDetail(Integer postId);
     Map<String, String> addPost(Map<String, String> data);
     Map<String, String> removePost(Integer postId);

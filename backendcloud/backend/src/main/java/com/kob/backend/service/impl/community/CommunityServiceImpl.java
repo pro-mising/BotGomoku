@@ -44,6 +44,9 @@ public class CommunityServiceImpl implements CommunityService {
     @Autowired
     private RedisCacheService redisCacheService;
 
+    @Autowired
+    private CommunitySearchService communitySearchService;
+
     private User currentUser() {
         UsernamePasswordAuthenticationToken authenticationToken =
                 (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
@@ -92,6 +95,16 @@ public class CommunityServiceImpl implements CommunityService {
         return item;
     }
 
+    private JSONObject postJson(CommunityPost post, Integer viewerId, JSONObject highlight) {
+        JSONObject item = postJson(post, viewerId);
+        if (highlight != null) {
+            item.put("highlight_title", highlight.getString("title"));
+            item.put("highlight_content", highlight.getString("content"));
+            item.put("highlight_username", highlight.getString("username"));
+        }
+        return item;
+    }
+
     private boolean isLiked(Integer postId, Integer userId) {
         QueryWrapper<CommunityPostLike> query = new QueryWrapper<>();
         query.eq("post_id", postId).eq("user_id", userId);
@@ -127,6 +140,66 @@ public class CommunityServiceImpl implements CommunityService {
         JSONObject resp = new JSONObject();
         resp.put("posts", items);
         resp.put("post_count", postMapper.selectCount(null));
+        return resp;
+    }
+
+    @Override
+    public JSONObject searchPostList(Map<String, String> data) {
+        User user = currentUser();
+        redisCacheService.markOnline(user);
+
+        int page = Integer.parseInt(data.getOrDefault("page", "1"));
+        String keyword = data.getOrDefault("keyword", "");
+        String sort = data.getOrDefault("sort", "time");
+
+        CommunitySearchService.SearchResult searchResult = communitySearchService.search(keyword, sort, page);
+        if (searchResult != null) {
+            List<JSONObject> items = new ArrayList<>();
+            for (Integer postId : searchResult.postIds()) {
+                CommunityPost post = postMapper.selectById(postId);
+                if (post != null) {
+                    items.add(postJson(post, user.getId(), searchResult.highlights().get(postId)));
+                }
+            }
+            JSONObject resp = new JSONObject();
+            resp.put("posts", items);
+            resp.put("post_count", searchResult.total());
+            resp.put("search_engine", "elasticsearch");
+            return resp;
+        }
+
+        return searchPostListFromMysql(user.getId(), page, keyword, sort);
+    }
+
+    private JSONObject searchPostListFromMysql(Integer viewerId, int page, String keyword, String sort) {
+        IPage<CommunityPost> postPage = new Page<>(page, 10);
+        QueryWrapper<CommunityPost> query = new QueryWrapper<>();
+        String trimmedKeyword = keyword == null ? "" : keyword.trim();
+        if (!trimmedKeyword.isEmpty()) {
+            List<Integer> userIds = new ArrayList<>();
+            QueryWrapper<User> userQuery = new QueryWrapper<>();
+            userQuery.like("username", trimmedKeyword);
+            for (User user : userMapper.selectList(userQuery)) {
+                userIds.add(user.getId());
+            }
+            query.and(wrapper -> {
+                wrapper.like("title", trimmedKeyword).or().like("content", trimmedKeyword);
+                if (!userIds.isEmpty()) wrapper.or().in("user_id", userIds);
+            });
+        }
+        if ("likes".equals(sort)) query.orderByDesc("likes").orderByDesc("id");
+        else query.orderByDesc("id");
+
+        IPage<CommunityPost> resultPage = postMapper.selectPage(postPage, query);
+        List<JSONObject> items = new ArrayList<>();
+        for (CommunityPost post : resultPage.getRecords()) {
+            items.add(postJson(post, viewerId));
+        }
+
+        JSONObject resp = new JSONObject();
+        resp.put("posts", items);
+        resp.put("post_count", resultPage.getTotal());
+        resp.put("search_engine", "mysql");
         return resp;
     }
 
@@ -169,6 +242,7 @@ public class CommunityServiceImpl implements CommunityService {
                 new Date()
         );
         postMapper.insert(post);
+        communitySearchService.syncPost(post);
         return success();
     }
 
@@ -188,6 +262,7 @@ public class CommunityServiceImpl implements CommunityService {
         likeMapper.delete(likeQuery);
 
         postMapper.deleteById(postId);
+        communitySearchService.deletePost(postId);
         return success();
     }
 
@@ -201,6 +276,7 @@ public class CommunityServiceImpl implements CommunityService {
         likeMapper.insert(new CommunityPostLike(null, postId, user.getId(), new Date()));
         post.setLikes((post.getLikes() == null ? 0 : post.getLikes()) + 1);
         postMapper.updateById(post);
+        communitySearchService.syncPost(post);
         return success();
     }
 
@@ -215,6 +291,7 @@ public class CommunityServiceImpl implements CommunityService {
         if (likeMapper.delete(query) > 0) {
             post.setLikes(Math.max(0, (post.getLikes() == null ? 0 : post.getLikes()) - 1));
             postMapper.updateById(post);
+            communitySearchService.syncPost(post);
         }
         return success();
     }
@@ -256,6 +333,7 @@ public class CommunityServiceImpl implements CommunityService {
         if (content.length() > 1000) return error("comment is too long");
 
         commentMapper.insert(new CommunityComment(null, postId, user.getId(), content.trim(), new Date()));
+        communitySearchService.syncPost(postMapper.selectById(postId));
         return success();
     }
 
@@ -266,6 +344,7 @@ public class CommunityServiceImpl implements CommunityService {
         if (comment == null) return error("comment not found");
         if (!comment.getUserId().equals(user.getId())) return error("permission denied");
         commentMapper.deleteById(commentId);
+        communitySearchService.syncPost(postMapper.selectById(comment.getPostId()));
         return success();
     }
 }

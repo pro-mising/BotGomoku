@@ -9,13 +9,34 @@
                 <button class="btn btn-primary" @click="open_composer">发表帖子</button>
             </header>
 
+            <section class="community-toolbar">
+                <div class="search-box">
+                    <input
+                        v-model="search.keyword"
+                        class="form-control"
+                        placeholder="搜索标题、正文或作者"
+                        @keyup.enter="run_search"
+                    >
+                    <button class="btn btn-primary" @click="run_search">搜索</button>
+                </div>
+                <div class="sort-switch">
+                    <button :class="{ active: search.sort === 'time' }" @click="change_sort('time')">最新发布</button>
+                    <button :class="{ active: search.sort === 'likes' }" @click="change_sort('likes')">点赞最多</button>
+                </div>
+            </section>
+
+            <div class="search-meta" v-if="search.keyword.trim() || search.engine">
+                <span v-if="search.keyword.trim()">搜索结果：{{ search.keyword.trim() }}</span>
+                <span v-if="search.engine">搜索引擎：{{ search.engine === "elasticsearch" ? "Elasticsearch" : "MySQL备用查询" }}</span>
+            </div>
+
             <section class="post-list" v-if="posts.length">
                 <article class="post-card" v-for="post in posts" :key="post.id" @click="open_post(post.id)">
                     <div class="post-head">
                         <img :src="post.author.photo" alt="" class="avatar">
                         <div>
                             <div class="author-line">
-                                <span class="author">{{ post.author.username }}</span>
+                                <span class="author" v-html="highlightText(post.highlight_username, post.author.username)"></span>
                                 <span :class="['presence-badge', post.author.online ? 'is-online' : 'is-offline']">
                                     <i></i>{{ post.author.online ? "在线" : "离线" }}
                                 </span>
@@ -24,8 +45,8 @@
                         </div>
                         <span class="tag">{{ post.tag }}</span>
                     </div>
-                    <h3>{{ post.title }}</h3>
-                    <p>{{ excerpt(post.content) }}</p>
+                    <h3 v-html="highlightText(post.highlight_title, post.title)"></h3>
+                    <p v-html="highlightText(post.highlight_content, excerpt(post.content))"></p>
                     <div class="post-actions">
                         <button :class="post.liked ? 'btn btn-primary btn-sm' : 'btn btn-outline-primary btn-sm'" @click.stop="toggle_like(post)">
                             点赞 {{ post.likes }}
@@ -41,7 +62,7 @@
             </section>
 
             <section class="empty-state" v-else>
-                暂时还没有帖子，成为第一个分享想法的玩家吧。
+                {{ search.keyword.trim() ? "没有找到相关帖子，换个关键词试试。" : "暂时还没有帖子，成为第一个分享想法的玩家吧。" }}
             </section>
 
             <nav v-if="pages.length">
@@ -105,6 +126,11 @@ export default {
         const pages = ref([]);
         const show_composer = ref(false);
         const is_publishing = ref(false);
+        const search = reactive({
+            keyword: "",
+            sort: "time",
+            engine: "",
+        });
         let current_page = 1;
         let total_posts = 0;
 
@@ -136,6 +162,18 @@ export default {
             return content.length > 180 ? content.substring(0, 180) + "..." : content;
         };
 
+        const escapeHtml = text => String(text || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+
+        const highlightText = (highlight, fallback) => {
+            const raw = highlight && highlight.trim() ? highlight : fallback;
+            return escapeHtml(raw)
+                .replace(/&lt;em&gt;/g, "<em>")
+                .replace(/&lt;\/em&gt;/g, "</em>");
+        };
+
         const open_composer = () => {
             postadd.error_message = "";
             show_composer.value = true;
@@ -162,16 +200,31 @@ export default {
         const pull_page = page => {
             current_page = page;
             $.ajax({
-                url: "http://127.0.0.1:3000/community/post/list/",
+                url: "http://127.0.0.1:3000/community/post/search/",
                 type: "GET",
-                data: { page },
+                data: {
+                    page,
+                    keyword: search.keyword.trim(),
+                    sort: search.sort,
+                },
                 headers: authHeaders(),
                 success(resp) {
                     posts.value = resp.posts;
                     total_posts = resp.post_count;
+                    search.engine = resp.search_engine || "";
                     update_pages();
                 }
             });
+        };
+
+        const run_search = () => {
+            pull_page(1);
+        };
+
+        const change_sort = sort => {
+            if (search.sort === sort) return;
+            search.sort = sort;
+            pull_page(1);
         };
 
         const click_page = page => {
@@ -233,6 +286,7 @@ export default {
                         post.liked = !post.liked;
                         post.likes += post.liked ? 1 : -1;
                         if (post.likes < 0) post.likes = 0;
+                        if (search.sort === "likes") pull_page(current_page);
                     }
                 }
             });
@@ -265,17 +319,21 @@ export default {
         return {
             posts,
             pages,
+            search,
             postadd,
             show_composer,
             is_publishing,
             add_post,
             click_page,
+            run_search,
+            change_sort,
             open_post,
             open_composer,
             close_composer,
             toggle_like,
             remove_post,
             excerpt,
+            highlightText,
         };
     }
 }
@@ -292,7 +350,7 @@ export default {
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    padding-bottom: 6px;
+    padding-bottom: 10px;
     border-bottom: 1px solid #e5e7eb;
 }
 
@@ -309,24 +367,82 @@ h3 {
     font-weight: 900;
 }
 
+.community-toolbar {
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) auto;
+    gap: 14px;
+    align-items: center;
+    padding: 14px;
+    border: 1px solid #eadcc8;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #fffaf0, #ffffff);
+}
+
+.search-box {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+}
+
+.sort-switch {
+    display: inline-grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    padding: 4px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.sort-switch button {
+    min-height: 34px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #64748b;
+    font-weight: 800;
+}
+
+.sort-switch button.active {
+    color: #92400e;
+    background: #fff1d8;
+}
+
+.search-meta {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.search-meta span {
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+}
+
 .post-list {
     display: grid;
     gap: 12px;
 }
 
 .post-card {
-    padding: 18px;
-    border: 1px solid #e5e7eb;
+    padding: 18px 20px;
+    border: 1px solid #eadcc8;
     border-radius: 8px;
-    background: white;
+    background: linear-gradient(180deg, #ffffff, #fffdf8);
     cursor: pointer;
     transition: box-shadow 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
 }
 
 .post-card:hover {
     transform: translateY(-1px);
-    border-color: #cbd5e1;
-    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
+    border-color: #d9962b;
+    box-shadow: 0 14px 32px rgba(146, 64, 14, 0.11);
 }
 
 .post-head {
@@ -395,9 +511,9 @@ h3 {
 .tag {
     margin-left: auto;
     padding: 4px 10px;
-    border-radius: 999px;
-    background: #e0f2fe;
-    color: #075985;
+    border-radius: 8px;
+    background: #fff1d8;
+    color: #92400e;
     font-weight: 700;
     font-size: 12px;
 }
@@ -410,10 +526,21 @@ h3 {
 p {
     color: #475569;
     white-space: pre-wrap;
+    line-height: 1.75;
+}
+
+.post-card :deep(em) {
+    padding: 0 3px;
+    border-radius: 4px;
+    background: #ffe1a6;
+    color: #92400e;
+    font-style: normal;
+    font-weight: 900;
 }
 
 .post-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 10px;
     margin-top: 12px;
 }
@@ -477,8 +604,11 @@ p {
 
 @media (max-width: 640px) {
     .community-header,
-    .composer-row {
+    .composer-row,
+    .community-toolbar,
+    .search-box {
         align-items: stretch;
+        grid-template-columns: 1fr;
         flex-direction: column;
     }
 

@@ -13,3 +13,8 @@ spring.data.redis.port=6379
 spring.data.redis.password=replace-with-redis-password
 spring.data.redis.database=0
 spring.data.redis.timeout=3000ms
+
+elasticsearch.enabled=true
+elasticsearch.url=http://10.119.6.66:9200
+elasticsearch.username=
+elasticsearch.password=
