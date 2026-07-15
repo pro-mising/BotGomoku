@@ -1,6 +1,7 @@
 package com.kob.backend.service.impl.bot.evaluation;
 
 import com.alibaba.fastjson2.JSONArray;
+import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.kob.backend.bot.builtin.BuiltInBotFactory;
@@ -183,7 +184,7 @@ public class BotEvaluationServiceImpl implements BotEvaluationService {
             return;
         }
 
-        String prompt = buildDeepSeekPrompt(savedReport.getReportJson(), bot.getContent());
+        String prompt = buildDeepSeekStructuredPrompt(savedReport.getReportJson(), bot.getContent());
 
         try {
             HttpHeaders headers = new HttpHeaders();
@@ -193,10 +194,11 @@ public class BotEvaluationServiceImpl implements BotEvaluationService {
             JSONObject body = new JSONObject();
             body.put("model", deepSeekModel);
             body.put("temperature", 0.2);
+            body.put("response_format", JSONObject.of("type", "json_object"));
             JSONArray messages = new JSONArray();
             JSONObject system = new JSONObject();
             system.put("role", "system");
-            system.put("content", "你是五子棋Bot代码评测专家。请用中文输出严格JSON，不要输出Markdown。");
+            system.put("content", "你是五子棋 Bot 代码测评专家。必须只输出严格 JSON，不要 Markdown、不要解释、不要代码围栏。");
             JSONObject userMessage = new JSONObject();
             userMessage.put("role", "user");
             userMessage.put("content", prompt);
@@ -220,9 +222,9 @@ public class BotEvaluationServiceImpl implements BotEvaluationService {
             JSONObject parsed = parseDeepSeekContent(content);
             normalizeAnalysis(parsed);
             savedReport.setAnalysisStatus("success");
-            savedReport.setAnalysisFindings(parsed.getString("findings"));
-            savedReport.setAnalysisWeaknesses(parsed.getString("weaknesses"));
-            savedReport.setAnalysisSuggestions(parsed.getString("suggestions"));
+            savedReport.setAnalysisFindings(parsed.getJSONArray("findings").toJSONString());
+            savedReport.setAnalysisWeaknesses(parsed.getJSONArray("weaknesses").toJSONString());
+            savedReport.setAnalysisSuggestions(parsed.getJSONArray("suggestions").toJSONString());
             savedReport.setOptimizedCode(parsed.getString("optimized_code"));
             savedReport.setModifytime(new Date());
             reportMapper.updateById(savedReport);
@@ -279,6 +281,43 @@ public class BotEvaluationServiceImpl implements BotEvaluationService {
         return report;
     }
 
+    private String buildDeepSeekStructuredPrompt(String report, String botCode) {
+        return """
+                请分析下面这个五子棋 Java Bot 的测评报告和源码。
+                你必须模拟 with_structured_output 的效果：只返回一个 JSON 对象，不要 Markdown，不要代码围栏，不要额外解释。
+
+                JSON Schema:
+                {
+                  "findings": ["测评发现列表，3 到 5 条，每条一句话，必须结合胜率、攻防、稳定性、效率等数据"],
+                  "weaknesses": ["主要弱点列表，3 到 5 条，每条一句话，必须指出影响表现的具体原因"],
+                  "suggestions": ["改进建议列表，3 到 5 条，每条一句话，必须是可执行的五子棋 Bot 优化方向"],
+                  "optimized_code": "优化后的完整 Java Bot 源码字符串"
+                }
+
+                分析字段要求：
+                1. findings、weaknesses、suggestions 必须是 JSON 数组，不允许返回长段落字符串。
+                2. 不要在数组项里使用 Markdown 加粗、标题、代码块。
+                3. 每个数组项控制在 80 个中文字符以内，适合前端列表展示。
+
+                optimized_code 要求：
+                1. 必须保留 package com.kob.botrunningsystem.utils;
+                2. 类名必须是 Bot；
+                3. 必须 implements com.kob.botrunningsystem.utils.BotInterface；
+                4. 必须实现 public Integer nextMove(String input)；
+                5. 返回 0 到 224 的合法位置；
+                6. 不要使用外部依赖；
+                7. 输出 optimized_code 前必须自行检查 Java 语法、括号、import、类名、方法签名，确保代码可以在当前项目中直接编译通过；
+                8. 如果不确定某个优化能否编译通过，就不要使用该优化，优先返回保守但可编译的完整代码；
+                9. optimized_code 只能是纯 Java 源码字符串，不要包含 HTML 标签、Markdown 代码围栏或语法高亮标签。
+
+                测评报告：
+                %s
+
+                原始源码：
+                %s
+                """.formatted(report, botCode);
+    }
+
     private String buildDeepSeekPrompt(String report, String botCode) {
         return """
                 请分析下面这个五子棋 Java Bot 的测评报告和源码。
@@ -332,10 +371,42 @@ public class BotEvaluationServiceImpl implements BotEvaluationService {
                 && parsed.getString("analysis") != null) {
             parsed.put("findings", parsed.getString("analysis"));
         }
-        if (parsed.getString("findings") == null) parsed.put("findings", "");
-        if (parsed.getString("weaknesses") == null) parsed.put("weaknesses", "");
-        if (parsed.getString("suggestions") == null) parsed.put("suggestions", "");
+        parsed.put("findings", toAnalysisArray(parsed.get("findings")));
+        parsed.put("weaknesses", toAnalysisArray(parsed.get("weaknesses")));
+        parsed.put("suggestions", toAnalysisArray(parsed.get("suggestions")));
         if (parsed.getString("optimized_code") == null) parsed.put("optimized_code", "");
+    }
+
+    private JSONArray toAnalysisArray(Object value) {
+        JSONArray items = new JSONArray();
+        if (value == null) return items;
+        if (value instanceof JSONArray array) {
+            for (Object item : array) {
+                String text = cleanAnalysisItem(item == null ? "" : item.toString());
+                if (!text.isBlank()) items.add(text);
+            }
+            return items;
+        }
+        String text = value.toString().trim();
+        if (text.isBlank()) return items;
+        try {
+            Object parsed = JSON.parse(text);
+            if (parsed instanceof JSONArray array) return toAnalysisArray(array);
+        } catch (Exception ignored) {
+        }
+        for (String line : text.split("\\n|(?=\\d+[.、])")) {
+            String item = cleanAnalysisItem(line);
+            if (!item.isBlank()) items.add(item);
+        }
+        if (items.isEmpty()) items.add(cleanAnalysisItem(text));
+        return items;
+    }
+
+    private String cleanAnalysisItem(String text) {
+        return text == null ? "" : text
+                .replaceAll("^\\s*\\d+[.、]\\s*", "")
+                .replace("**", "")
+                .trim();
     }
 
     private BotEvaluationReport saveEvaluationReport(User user, Bot bot, String mode, JSONObject reportJson) {
@@ -374,9 +445,9 @@ public class BotEvaluationServiceImpl implements BotEvaluationService {
     private JSONObject buildAnalysisJson(BotEvaluationReport savedReport) {
         JSONObject analysis = new JSONObject();
         analysis.put("status", savedReport.getAnalysisStatus());
-        analysis.put("findings", savedReport.getAnalysisFindings());
-        analysis.put("weaknesses", savedReport.getAnalysisWeaknesses());
-        analysis.put("suggestions", savedReport.getAnalysisSuggestions());
+        analysis.put("findings", toAnalysisArray(savedReport.getAnalysisFindings()));
+        analysis.put("weaknesses", toAnalysisArray(savedReport.getAnalysisWeaknesses()));
+        analysis.put("suggestions", toAnalysisArray(savedReport.getAnalysisSuggestions()));
         return analysis;
     }
 

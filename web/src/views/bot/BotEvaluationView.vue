@@ -79,21 +79,15 @@
                         DeepSeek 正在分析测评数据，刷新或切换页面不会中断，请稍等。
                     </div>
                     <div class="analysis-grid" v-else-if="hasDeepSeekAnalysis">
-                        <article class="analysis-section">
-                            <span>测评发现</span>
-                            <p>{{ analysis_report.findings }}</p>
-                        </article>
-                        <article class="analysis-section">
-                            <span>主要弱点</span>
-                            <p>{{ analysis_report.weaknesses }}</p>
-                        </article>
-                        <article class="analysis-section">
-                            <span>改进建议</span>
-                            <p>{{ analysis_report.suggestions }}</p>
+                        <article class="analysis-section" v-for="section in analysisSections" :key="section.key">
+                            <span>{{ section.title }}</span>
+                            <ul>
+                                <li v-for="(item, index) in section.items" :key="`${section.key}-${index}`">{{ item }}</li>
+                            </ul>
                         </article>
                     </div>
                     <div class="analysis-pending failed" v-else-if="analysis_report && analysis_report.status === 'failed'">
-                        {{ analysis_report.findings || "DeepSeek 分析失败，请稍后重试。" }}
+                        {{ firstAnalysisItem(analysis_report.findings) || "DeepSeek 分析失败，请稍后重试。" }}
                     </div>
                     <p v-else>{{ report.ai_report }}</p>
                     <div class="formula">综合评分 = 胜率 40% + 防守能力 20% + 进攻能力 20% + 稳定性 10% + 效率 10%</div>
@@ -358,10 +352,38 @@ export default {
             });
         };
 
+        const toAnalysisItems = value => {
+            if (!value) return [];
+            if (Array.isArray(value)) {
+                return value.map(item => String(item || "").trim()).filter(Boolean);
+            }
+            if (typeof value === "string") {
+                try {
+                    const parsed = JSON.parse(value);
+                    if (Array.isArray(parsed)) return toAnalysisItems(parsed);
+                } catch (e) {
+                    // Keep old string reports readable.
+                }
+                return value
+                    .split(/\n|(?=\d+[.、])/)
+                    .map(item => item.replace(/^\s*\d+[.、]\s*/, "").replace(/\*\*/g, "").trim())
+                    .filter(Boolean);
+            }
+            return [String(value).trim()].filter(Boolean);
+        };
+
+        const firstAnalysisItem = value => toAnalysisItems(value)[0] || "";
+
+        const analysisSections = computed(() => [
+            { key: "findings", title: "测评发现", items: toAnalysisItems(analysis_report.value && analysis_report.value.findings) },
+            { key: "weaknesses", title: "主要弱点", items: toAnalysisItems(analysis_report.value && analysis_report.value.weaknesses) },
+            { key: "suggestions", title: "改进建议", items: toAnalysisItems(analysis_report.value && analysis_report.value.suggestions) },
+        ].filter(section => section.items.length > 0));
+
         const hasDeepSeekAnalysis = computed(() => {
             return analysis_report.value
                 && analysis_report.value.status === "success"
-                && (analysis_report.value.findings || analysis_report.value.weaknesses || analysis_report.value.suggestions);
+                && analysisSections.value.length > 0;
         });
 
         const escapeHtml = text => (text || "")
@@ -401,9 +423,11 @@ export default {
             deepseek_running,
             analysis_report,
             hasDeepSeekAnalysis,
+            analysisSections,
             optimized_code,
             copy_message,
             highlightedCode,
+            firstAnalysisItem,
             copyOptimizedCode,
             run_evaluation,
             run_deepseek_analysis,
@@ -617,9 +641,32 @@ h2 {
     font-weight: 900;
 }
 
-.analysis-section p {
-    white-space: pre-line;
+.analysis-section ul {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.analysis-section li {
+    position: relative;
+    padding-left: 22px;
+    color: #475569;
     font-size: 14px;
+    line-height: 1.7;
+}
+
+.analysis-section li::before {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 10px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #d9962b;
+    box-shadow: 0 0 0 4px rgba(217, 150, 43, 0.14);
 }
 
 .analysis-pending {
