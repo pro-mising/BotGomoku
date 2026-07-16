@@ -3,8 +3,7 @@
         <div class="record-center">
             <header class="record-header">
                 <div>
-                    <div class="header-kicker">对局复盘</div>
-                    <h2>对局中心</h2>
+                    <h2>对局列表</h2>
                 </div>
             </header>
 
@@ -35,7 +34,7 @@
                         <div class="player">
                             <img :src="record.a_photo" alt="" class="avatar">
                             <div>
-                                <span>黑方</span>
+                                <span class="side-label"><i class="stone-dot black"></i>黑方</span>
                                 <strong v-html="highlightText(record.highlight && record.highlight.black_username, record.a_username)"></strong>
                             </div>
                         </div>
@@ -43,17 +42,13 @@
                         <div class="player right">
                             <img :src="record.b_photo" alt="" class="avatar">
                             <div>
-                                <span>白方</span>
+                                <span class="side-label"><i class="stone-dot white"></i>白方</span>
                                 <strong v-html="highlightText(record.highlight && record.highlight.white_username, record.b_username)"></strong>
                             </div>
                         </div>
                     </div>
 
                     <div class="analysis">
-                        <div class="analysis-head">
-                            <span class="analysis-kicker">关键节点</span>
-                            <strong v-html="highlightText(record.highlight && record.highlight.key_moment, record.analysis.key_moment)"></strong>
-                        </div>
                         <div class="analysis-metrics">
                             <span :class="['score-pill', scoreLevel(record.analysis.highlight_score)]">
                                 {{ record.analysis.highlight_score }} 分
@@ -62,20 +57,16 @@
                             <span>{{ record.analysis.win_direction || "待分析" }}</span>
                             <span>收藏 {{ record.favorite_count }}</span>
                         </div>
-                        <p
-                            class="summary-text"
-                            v-html="highlightText(record.highlight && record.highlight.summary, cleanSummary(record.analysis.summary, record.analysis.key_moment))"
-                        ></p>
-                        <div class="time-row">{{ record.record.createtime }}</div>
                     </div>
 
                     <div class="actions">
-                        <button :class="record.favorite ? 'btn btn-primary btn-sm' : 'btn btn-outline-primary btn-sm'" @click="toggle_favorite(record)">
+                        <button :class="record.favorite ? 'btn btn-primary record-action-btn' : 'btn btn-outline-primary record-action-btn'" @click="toggle_favorite(record)">
                             {{ record.favorite ? "已收藏" : "收藏" }}
                         </button>
-                        <button class="btn btn-outline-secondary btn-sm" @click="open_record_content(record.record.id)">
+                        <button class="btn btn-outline-secondary record-action-btn" @click="open_record_content(record.record.id)">
                             查看回放
                         </button>
+                        <div class="time-row">{{ record.record.createtime }}</div>
                     </div>
                 </article>
             </section>
@@ -304,20 +295,14 @@ export default {
 }
 
 .record-header {
-    padding-bottom: 10px;
+    padding-bottom: 12px;
     border-bottom: 1px solid #e5e7eb;
-}
-
-.header-kicker {
-    color: #c8872c;
-    font-size: 13px;
-    font-weight: 900;
 }
 
 h2 {
     margin: 0;
     color: #0f172a;
-    font-size: 28px;
+    font-size: 30px;
     font-weight: 900;
 }
 
@@ -344,10 +329,10 @@ h2 {
 
 .record-card {
     display: grid;
-    grid-template-columns: minmax(260px, 0.9fr) minmax(280px, 1.2fr) auto;
-    gap: 16px;
+    grid-template-columns: minmax(320px, 0.95fr) minmax(300px, 1.15fr) 148px;
+    gap: 18px;
     align-items: center;
-    padding: 16px;
+    padding: 18px;
     border: 1px solid #e5e7eb;
     border-radius: 8px;
     background: #ffffff;
@@ -364,7 +349,7 @@ h2 {
 .player {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
 }
 
 .player.right {
@@ -373,25 +358,51 @@ h2 {
 }
 
 .avatar {
-    width: 44px;
-    height: 44px;
+    width: 68px;
+    height: 68px;
+    min-width: 68px;
+    min-height: 68px;
+    aspect-ratio: 1 / 1;
     border-radius: 50%;
     object-fit: cover;
     border: 2px solid #f1f5f9;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
 }
 
 .player span,
-.analysis-metrics span,
-.time-row,
-.analysis-kicker {
+.time-row {
     color: #64748b;
     font-size: 12px;
     font-weight: 800;
 }
 
+.side-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.stone-dot {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
+}
+
+.stone-dot.black {
+    background: radial-gradient(circle at 35% 30%, #5b5b5b, #111827 62%, #020617);
+}
+
+.stone-dot.white {
+    border: 1px solid #d1d5db;
+    background: radial-gradient(circle at 35% 30%, #ffffff, #f3f4f6 62%, #d1d5db);
+}
+
 .player strong {
     display: block;
     color: #0f172a;
+    font-size: 17px;
     font-weight: 900;
 }
 
@@ -407,32 +418,8 @@ h2 {
 
 .analysis {
     display: grid;
-    gap: 8px;
     min-width: 0;
     padding: 2px 0;
-}
-
-.analysis-head {
-    display: grid;
-    gap: 3px;
-}
-
-.analysis-head strong {
-    color: #0f172a;
-    font-size: 14px;
-    font-weight: 900;
-    line-height: 1.45;
-}
-
-.analysis-kicker {
-    color: #92400e;
-    letter-spacing: 0;
-}
-
-.summary-text {
-    margin: 0;
-    color: #475569;
-    line-height: 1.65;
 }
 
 .record-card :deep(em) {
@@ -446,15 +433,24 @@ h2 {
 
 .analysis-metrics {
     display: flex;
-    gap: 6px;
+    align-items: center;
+    gap: 8px;
     flex-wrap: wrap;
 }
 
 .analysis-metrics span {
-    padding: 3px 8px;
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 6px 11px;
     border: 1px solid #e5e7eb;
     border-radius: 999px;
     background: #f8fafc;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 900;
+    text-align: center;
+    line-height: 1.25;
 }
 
 .score-pill {
@@ -476,14 +472,27 @@ h2 {
 }
 
 .time-row {
-    justify-self: end;
+    justify-self: center;
+    margin-top: 2px;
     color: #94a3b8;
+    font-size: 11px;
+    line-height: 1.35;
+    text-align: center;
 }
 
 .actions {
     display: grid;
-    gap: 8px;
-    min-width: 96px;
+    gap: 11px;
+    min-width: 148px;
+    justify-items: stretch;
+}
+
+.record-action-btn {
+    min-height: 42px;
+    padding: 9px 16px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 900;
 }
 
 .empty-state {
