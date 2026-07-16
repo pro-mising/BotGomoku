@@ -108,6 +108,10 @@ div.user-photo {
 div.user-photo > img {
     border-radius: 50%;
     width: 33vh;
+    height: 33vh;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    display: inline-block;
 }
 
 div.user-username {

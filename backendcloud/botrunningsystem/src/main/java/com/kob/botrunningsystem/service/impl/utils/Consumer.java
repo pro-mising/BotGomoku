@@ -5,11 +5,17 @@ import com.kob.botrunningsystem.utils.BotInterface;
 import org.joor.Reflect;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Component
 public class Consumer extends Thread {
+    private static final Pattern BOT_CLASS_PATTERN = Pattern.compile("\\bclass\\s+Bot\\b");
+
     private Bot bot;
     private static BackendClient backendClient;
 
@@ -20,16 +26,15 @@ public class Consumer extends Thread {
 
     public void startTimeout(long timeout, Bot bot) {
         this.bot = bot;
-        this.start();  //这里start之后就会开启一个新的线程执行后面的这个run函数，并且当前线程会继续执行这个join函数
+        this.start();
 
         try {
-            this.join(timeout); //最多等待timeout秒，如果timeout秒执行完了之后前面的线程还没执行，那么就会直接执行下面的代码，如果在timeout秒内线程执行完了，那么就会直接执行下面的代码
+            this.join(timeout);
         } catch (InterruptedException e) {
             e.printStackTrace();
         } finally {
-            this.interrupt(); //防止用户程序死循环
+            this.interrupt();
         }
-
     }
 
     private String addUid(String code, String uid) {
@@ -37,35 +42,44 @@ public class Consumer extends Thread {
             throw new IllegalArgumentException("参数 code 或 uid 不能为 null");
         }
 
-        int k = code.indexOf(" implements com.kob.botrunningsystem.utils.BotInterface");
-        if (k == -1) {
-//            throw new IllegalArgumentException("未找到接口声明，无法插入 uid");
-            System.out.println("未找到接口声明，无法插入 uid");
-            return null;
+        Matcher matcher = BOT_CLASS_PATTERN.matcher(code);
+        if (!matcher.find()) {
+            throw new IllegalArgumentException("未找到 class Bot，无法生成动态 Bot 类名");
         }
 
-//        System.out.println("我在这里: " + code.substring(0, k) + uid + code.substring(k));
-        return code.substring(0, k) + uid + code.substring(k);
+        return matcher.replaceFirst("class Bot" + uid);
     }
 
+    private void sendMove(Integer direction) {
+        if (backendClient == null) {
+            System.err.println("bot move callback failed: BackendClient is null");
+            return;
+        }
+        MultiValueMap<String, String> data = new LinkedMultiValueMap<>();
+        data.add("user_id", bot.getUserId().toString());
+        data.add("direction", direction.toString());
+        backendClient.receiveBotMove(data);
+    }
 
     @Override
     public void run() {
-        //Reflect 这个函数可以动态编译代码
-//        System.out.println("run正在执行");
-//        System.out.println("botCode : " + bot.getBotCode());
-        UUID uuid = UUID.randomUUID(); //返回结果不一样位就可以，因为比较长
-        String uid = uuid.toString().substring(0, 8);//返回前8位，因为太长了
-        //在name里面加一个uid，这样可以保证这段代码每次都执行
-        BotInterface botInterface = (BotInterface) Reflect.compile(
-                "com.kob.botrunningsystem.utils.Bot" + uid,
-                addUid(bot.getBotCode(), uid)
-        ).create().get();
+        try {
+            String uid = UUID.randomUUID().toString().substring(0, 8);
+            BotInterface botInterface = (BotInterface) Reflect.compile(
+                    "com.kob.botrunningsystem.utils.Bot" + uid,
+                    addUid(bot.getBotCode(), uid)
+            ).create().get();
 
-        Integer direction = botInterface.nextMove(bot.getInput());
-
-        System.out.println("bot move: " + bot.getUserId() + " " + direction);
-
-        backendClient.receiveBotMove(bot.getUserId().toString(), direction.toString());
+            Integer direction = botInterface.nextMove(bot.getInput());
+            if (direction == null) {
+                System.err.println("bot returned null move. userId=" + bot.getUserId());
+                return;
+            }
+            System.out.println("bot move: " + bot.getUserId() + " " + direction);
+            sendMove(direction);
+        } catch (Throwable e) {
+            System.err.println("bot execution failed. userId="
+                    + bot.getUserId() + ", error=" + e.getMessage());
+        }
     }
 }

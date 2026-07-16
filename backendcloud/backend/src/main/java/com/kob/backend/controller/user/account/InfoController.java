@@ -4,7 +4,10 @@ import com.alibaba.fastjson2.JSONObject;
 import com.kob.backend.service.user.account.InfoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
@@ -26,5 +29,10 @@ public class InfoController {
     @GetMapping("/user/account/profile/overview/")
     public JSONObject getProfileOverview() {
         return infoService.getProfileOverview();
+    }
+
+    @PostMapping("/user/account/avatar/")
+    public JSONObject updateAvatar(@RequestParam("file") MultipartFile file) {
+        return infoService.updateAvatar(file);
     }
 }

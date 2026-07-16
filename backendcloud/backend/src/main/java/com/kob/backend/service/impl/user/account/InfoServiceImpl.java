@@ -21,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -50,6 +51,9 @@ public class InfoServiceImpl implements InfoService {
 
     @Autowired
     private CommunityCommentMapper commentMapper;
+
+    @Autowired
+    private AvatarStorageService avatarStorageService;
 
     @Override
     public Map<String, String> getinfo() {
@@ -85,6 +89,25 @@ public class InfoServiceImpl implements InfoService {
         resp.put("battle", buildBattleData(user));
         resp.put("bot", buildBotData(user));
         resp.put("community", buildCommunityData(user));
+        return resp;
+    }
+
+    @Override
+    public JSONObject updateAvatar(MultipartFile file) {
+        User user = currentUser();
+        JSONObject resp = new JSONObject();
+        try {
+            String photo = avatarStorageService.uploadAvatar(user.getId(), file);
+            user.setPhoto(photo);
+            userMapper.updateById(user);
+            redisCacheService.markOnline(user);
+            resp.put("error_message", "success");
+            resp.put("photo", photo);
+        } catch (IllegalArgumentException e) {
+            resp.put("error_message", e.getMessage());
+        } catch (Exception e) {
+            resp.put("error_message", "头像上传失败，请检查 MinIO 服务是否正常");
+        }
         return resp;
     }
 

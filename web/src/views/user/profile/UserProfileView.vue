@@ -3,7 +3,11 @@
         <div class="profile-page">
             <section class="profile-hero">
                 <div class="profile-main">
-                    <img :src="profile.photo || defaultAvatar" alt="" class="profile-avatar">
+                    <label class="avatar-uploader">
+                        <img :src="profile.photo || defaultAvatar" alt="" class="profile-avatar">
+                        <span>{{ uploading ? "上传中" : "更换头像" }}</span>
+                        <input type="file" accept="image/*" :disabled="uploading" @change="uploadAvatar">
+                    </label>
                     <div>
                         <div class="profile-status">
                             <span :class="['status-dot', profile.online ? 'online' : 'offline']"></span>
@@ -155,6 +159,7 @@ export default {
         const battle = ref({});
         const bot = ref({});
         const community = ref({});
+        const uploading = ref(false);
 
         const pullOverview = () => {
             $.ajax({
@@ -179,6 +184,45 @@ export default {
             return "draw";
         };
 
+        const uploadAvatar = event => {
+            const file = event.target.files && event.target.files[0];
+            event.target.value = "";
+            if (!file || uploading.value) return;
+            const formData = new FormData();
+            formData.append("file", file);
+            uploading.value = true;
+            $.ajax({
+                url: "http://127.0.0.1:3000/user/account/avatar/",
+                type: "POST",
+                data: formData,
+                processData: false,
+                contentType: false,
+                headers: {
+                    Authorization: "Bearer " + store.state.user.token,
+                },
+                success(resp) {
+                    if (resp.error_message === "success") {
+                        profile.value.photo = resp.photo;
+                        store.commit("updateUser", {
+                            id: store.state.user.id,
+                            username: store.state.user.username,
+                            photo: resp.photo,
+                            is_login: true,
+                            online: store.state.user.online,
+                        });
+                    } else {
+                        alert(resp.error_message || "头像上传失败");
+                    }
+                },
+                error() {
+                    alert("头像上传失败，请检查后端服务是否正常");
+                },
+                complete() {
+                    uploading.value = false;
+                }
+            });
+        };
+
         pullOverview();
 
         return {
@@ -187,7 +231,9 @@ export default {
             battle,
             bot,
             community,
+            uploading,
             resultClass,
+            uploadAvatar,
         };
     }
 }
@@ -214,6 +260,31 @@ export default {
     display: flex;
     align-items: center;
     gap: 16px;
+}
+
+.avatar-uploader {
+    position: relative;
+    display: inline-flex;
+    cursor: pointer;
+}
+
+.avatar-uploader span {
+    position: absolute;
+    left: 50%;
+    bottom: 2px;
+    transform: translateX(-50%);
+    min-width: 72px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.72);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 800;
+    text-align: center;
+}
+
+.avatar-uploader input {
+    display: none;
 }
 
 .profile-avatar {

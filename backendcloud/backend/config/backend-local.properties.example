@@ -18,3 +18,9 @@ elasticsearch.enabled=true
 elasticsearch.url=http://10.119.6.66:9200
 elasticsearch.username=
 elasticsearch.password=
+
+minio.endpoint=http://10.119.6.66:9005
+minio.public-url=http://10.119.6.66:9005
+minio.access-key=replace-with-minio-access-key
+minio.secret-key=replace-with-minio-secret-key
+minio.bucket=botgomoku

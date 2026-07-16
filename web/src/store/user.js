@@ -54,6 +54,7 @@ export default {
             const onError = callback(data && data.error);
 
             sessionStorage.removeItem("jwt_token");
+            localStorage.removeItem("jwt_token");
             context.commit("logout");
 
             $.ajax({
@@ -66,6 +67,7 @@ export default {
                 success(resp) {
                     if (resp.error_message === "success") {
                         sessionStorage.setItem("jwt_token", resp.token);
+                        localStorage.setItem("jwt_token", resp.token);
                         context.commit("updateToken", resp.token);
                         onSuccess(resp);
                     } else {
@@ -85,6 +87,7 @@ export default {
             if (!context.state.token) {
                 context.commit("logout");
                 sessionStorage.removeItem("jwt_token");
+                localStorage.removeItem("jwt_token");
                 onError({ error_message: "missing token" });
                 return;
             }
@@ -92,6 +95,7 @@ export default {
             if (!isJwt(context.state.token)) {
                 context.commit("logout");
                 sessionStorage.removeItem("jwt_token");
+                localStorage.removeItem("jwt_token");
                 onError({ error_message: "invalid token" });
                 return;
             }
@@ -117,12 +121,14 @@ export default {
                     console.error("get user info failed:", resp);
                     context.commit("logout");
                     sessionStorage.removeItem("jwt_token");
+                    localStorage.removeItem("jwt_token");
                     onError(ajaxError("request failed", resp));
                 }
             });
         },
         logout(context) {
             sessionStorage.removeItem("jwt_token");
+            localStorage.removeItem("jwt_token");
             context.commit("logout");
         }
     },

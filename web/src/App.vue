@@ -28,9 +28,21 @@ setup() {
     }
   };
 
-  sessionStorage.removeItem("jwt_token");
-  store.commit("logout");
-  finishPulling();
+  const token = localStorage.getItem("jwt_token") || sessionStorage.getItem("jwt_token");
+  if (token) {
+    store.commit("updateToken", token);
+    store.dispatch("getinfo", {
+      success() {
+        finishPulling();
+      },
+      error() {
+        finishPulling();
+      }
+    });
+  } else {
+    store.commit("logout");
+    finishPulling();
+  }
 }
 
 }

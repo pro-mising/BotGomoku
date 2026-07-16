@@ -120,6 +120,9 @@ export default {
     display: block;
     width: 96px;
     height: 96px;
+    min-width: 96px;
+    min-height: 96px;
+    aspect-ratio: 1 / 1;
     margin: 30px auto 16px;
     border-radius: 50%;
     object-fit: cover;
@@ -206,6 +209,8 @@ export default {
     .player-avatar {
         width: 72px;
         height: 72px;
+        min-width: 72px;
+        min-height: 72px;
         margin-top: 16px;
     }
 }

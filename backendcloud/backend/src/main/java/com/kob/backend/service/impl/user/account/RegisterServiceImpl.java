@@ -5,6 +5,7 @@ import com.kob.backend.mapper.UserMapper;
 import com.kob.backend.pojo.User;
 import com.kob.backend.service.user.account.RegisterService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +20,12 @@ public class RegisterServiceImpl implements RegisterService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Value("${minio.public-url}")
+    private String minioPublicUrl;
+
+    @Value("${minio.bucket}")
+    private String minioBucket;
 
     @Override
     public Map<String, String> register(String username, String password, String confirmPassword) {
@@ -69,11 +76,17 @@ public class RegisterServiceImpl implements RegisterService {
         }
 
         String encodedPassword = passwordEncoder.encode(password);
-        String photo = "https://cdn.acwing.com/media/user/profile/photo/145584_lg_990c1295e1.png";
+        String photo = defaultAvatarUrl();
         User user = new User(null, username, encodedPassword, photo, 1500);
 
         userMapper.insert(user);
         map.put("error_message", "success");
         return map;
+    }
+
+    private String defaultAvatarUrl() {
+        String base = minioPublicUrl == null ? "" : minioPublicUrl;
+        if (base.endsWith("/")) base = base.substring(0, base.length() - 1);
+        return base + "/" + minioBucket + "/avatars/default.svg";
     }
 }
