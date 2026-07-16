@@ -26,6 +26,8 @@ public class Game extends Thread {
     private String finishReason = "";
     private Integer lastMove = -1;
     private final static Integer HUMAN_BOT_ID = -1;
+    private final static Integer TURN_TIMEOUT_MILLISECONDS = 15000;
+    private final static Integer STEP_CHECK_INTERVAL_MILLISECONDS = 100;
 
     public Game(Integer rows,
                 Integer cols,
@@ -144,9 +146,9 @@ public class Game extends Thread {
         boolean aTurn = isATurn();
         sendBotCode(player);
 
-        for (int i = 0; i < 300; i++) {
+        for (int i = 0; i < TURN_TIMEOUT_MILLISECONDS / STEP_CHECK_INTERVAL_MILLISECONDS; i++) {
             try {
-                Thread.sleep(100);
+                Thread.sleep(STEP_CHECK_INTERVAL_MILLISECONDS);
                 lock.lock();
                 try {
                     Integer action = aTurn ? nextStepA : nextStepB;

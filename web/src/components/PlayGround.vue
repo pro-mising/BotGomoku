@@ -13,6 +13,7 @@
                 <div class="turn-status">
                     <span class="turn-status-dot"></span>
                     <span>{{ currentTurnText }}</span>
+                    <strong v-if="!isRecord && !gameEnded" class="turn-countdown">{{ timeLeft }}s</strong>
                 </div>
             </header>
 
@@ -79,7 +80,7 @@
 <script>
 import GameMap from './GameMap.vue';
 import PlayerCard from './PlayerCard.vue';
-import { computed } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useStore } from 'vuex';
 
 export default {
@@ -89,6 +90,8 @@ export default {
     },
     setup() {
         const store = useStore();
+        const now = ref(Date.now());
+        let timer = null;
 
         const me = computed(() => ({
             id: Number(store.state.user.id),
@@ -132,16 +135,31 @@ export default {
             return currentPlayerIsBlack.value ? "黑方回合" : "白方回合";
         });
 
+        const timeLeft = computed(() => {
+            if (!store.state.pk.turn_deadline || gameEnded.value || isRecord.value) return 0;
+            return Math.max(0, Math.ceil((store.state.pk.turn_deadline - now.value) / 1000));
+        });
+
         const blackTurnText = computed(() => {
             if (gameEnded.value) return "对局结束";
-            if (currentPlayerIsBlack.value) return isMyTurn.value ? "你的回合" : "落子中";
+            if (currentPlayerIsBlack.value) return isMyTurn.value ? `你的回合 ${timeLeft.value}s` : `落子中 ${timeLeft.value}s`;
             return "等待中";
         });
 
         const whiteTurnText = computed(() => {
             if (gameEnded.value) return "对局结束";
-            if (!currentPlayerIsBlack.value) return isMyTurn.value ? "你的回合" : "落子中";
+            if (!currentPlayerIsBlack.value) return isMyTurn.value ? `你的回合 ${timeLeft.value}s` : `落子中 ${timeLeft.value}s`;
             return "等待中";
+        });
+
+        onMounted(() => {
+            timer = setInterval(() => {
+                now.value = Date.now();
+            }, 250);
+        });
+
+        onUnmounted(() => {
+            if (timer) clearInterval(timer);
         });
 
         return {
@@ -152,6 +170,9 @@ export default {
             currentTurnText,
             blackTurnText,
             whiteTurnText,
+            isRecord,
+            gameEnded,
+            timeLeft,
         }
     }
 }
@@ -254,6 +275,22 @@ export default {
     height: 9px;
     border-radius: 50%;
     background: #f0c777;
+}
+
+.turn-countdown {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    height: 28px;
+    margin-left: 4px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: #f2c77d;
+    color: #2f2925;
+    font-size: 15px;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
 }
 
 .game-layout {

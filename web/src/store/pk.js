@@ -18,6 +18,8 @@ export default {
         loser: "none", //all, A, B
         winner: "none",
         result_reason: "",
+        turn_time_limit: 15,
+        turn_deadline: 0,
     },
     getters: {
     },
@@ -41,6 +43,7 @@ export default {
             state.b_sx = game.b_sx;
             state.b_sy = game.b_sy;
             state.current_player = Number(game.current_player || game.a_id);
+            state.turn_deadline = Date.now() + state.turn_time_limit * 1000;
         },
         updateGameObject(state, gameObject) {
             state.gameObject = gameObject;
@@ -52,14 +55,17 @@ export default {
             state.loser = result.loser;
             state.winner = result.winner || (result.loser === "A" ? "B" : (result.loser === "B" ? "A" : "all"));
             state.result_reason = result.reason || "";
+            state.turn_deadline = 0;
         },
         resetResult(state) {
             state.loser = "none";
             state.winner = "none";
             state.result_reason = "";
+            state.turn_deadline = 0;
         },
         updateCurrentPlayer(state, userId) {
             state.current_player = Number(userId);
+            state.turn_deadline = Date.now() + state.turn_time_limit * 1000;
         }
     },
     actions: {

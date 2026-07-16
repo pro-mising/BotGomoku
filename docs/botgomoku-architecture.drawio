@@ -1,0 +1,146 @@
+<mxfile host="app.diagrams.net" modified="2026-07-16T12:20:00.000Z" agent="Codex" version="24.7.17" type="device">
+  <diagram id="botgomoku-architecture" name="BotGomoku 项目架构图">
+    <mxGraphModel dx="1440" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="BotGomoku 项目整体架构图" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=28;fontStyle=1;fontColor=#2F2925;" vertex="1" parent="1">
+          <mxGeometry x="500" y="20" width="600" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="clientLayer" value="客户端 / 展示层" style="swimlane;html=1;rounded=1;whiteSpace=wrap;fillColor=#FFF8ED;strokeColor=#E6C38A;fontSize=16;fontStyle=1;startSize=34;" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="300" height="760" as="geometry"/>
+        </mxCell>
+        <mxCell id="gatewayLayer" value="网关与注册中心" style="swimlane;html=1;rounded=1;whiteSpace=wrap;fillColor=#EEF6FF;strokeColor=#8FB8E8;fontSize=16;fontStyle=1;startSize=34;" vertex="1" parent="1">
+          <mxGeometry x="390" y="100" width="300" height="760" as="geometry"/>
+        </mxCell>
+        <mxCell id="serviceLayer" value="业务微服务层" style="swimlane;html=1;rounded=1;whiteSpace=wrap;fillColor=#F6FFF3;strokeColor=#93C47D;fontSize=16;fontStyle=1;startSize=34;" vertex="1" parent="1">
+          <mxGeometry x="740" y="100" width="400" height="760" as="geometry"/>
+        </mxCell>
+        <mxCell id="infraLayer" value="数据与中间件层" style="swimlane;html=1;rounded=1;whiteSpace=wrap;fillColor=#FBF3FF;strokeColor=#B99AD6;fontSize=16;fontStyle=1;startSize=34;" vertex="1" parent="1">
+          <mxGeometry x="1190" y="100" width="360" height="760" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="browser" value="浏览器用户&lt;br&gt;玩家 / 老师演示" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D89A3C;fontSize=14;fontStyle=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="160" width="220" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="vue" value="Vue3 前端&lt;br&gt;Vue Router / Vuex&lt;br&gt;对战、Bot测试、社区、排行榜、个人中心" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFDF8;strokeColor=#D89A3C;fontSize=13;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="280" width="240" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="websocketClient" value="WebSocket 客户端&lt;br&gt;实时匹配 / 落子 / 结果推送" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFDF8;strokeColor=#D89A3C;fontSize=13;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="440" width="240" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="gateway" value="Spring Cloud Gateway&lt;br&gt;端口 3000&lt;br&gt;统一入口 / 路由 / CORS&lt;br&gt;/user /pk /record /community /ranklist /bot/evaluation /websocket" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3D85C6;fontSize=13;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="420" y="170" width="240" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="nacos" value="Nacos&lt;br&gt;服务注册与发现&lt;br&gt;10.119.6.66:8848" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF4FF;strokeColor=#3D85C6;fontSize=13;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="420" y="350" width="240" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="openfeign" value="OpenFeign&lt;br&gt;服务间调用&lt;br&gt;backend-service ↔ matching / bot-running" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF4FF;strokeColor=#3D85C6;fontSize=13;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="420" y="500" width="240" height="90" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="backend" value="backend-service&lt;br&gt;Spring Boot / Spring MVC / MyBatis Plus&lt;br&gt;账号认证 JWT、WebSocket 对战、五子棋规则、15 秒超时判负&lt;br&gt;社区、排行榜、个人中心、对局中心、Bot测试" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6AA84F;fontSize=13;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="780" y="150" width="320" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="matching" value="matching-service&lt;br&gt;匹配池线程&lt;br&gt;真人 / Bot 出战匹配&lt;br&gt;等待时间动态放宽匹配条件" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6AA84F;fontSize=13;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="780" y="330" width="320" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="botrunning" value="bot-running-service&lt;br&gt;用户 Bot 代码编译与运行&lt;br&gt;执行 BotInterface.nextMove&lt;br&gt;返回真实落子结果" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6AA84F;fontSize=13;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="780" y="480" width="320" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="deepseek" value="DeepSeek API&lt;br&gt;赛后报告分析&lt;br&gt;生成优化建议与 Bot 代码" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F2FFF0;strokeColor=#6AA84F;fontSize=13;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="780" y="630" width="320" height="90" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="mysql" value="MySQL&lt;br&gt;用户、Bot、对局记录&lt;br&gt;社区帖子 / 评论 / 点赞&lt;br&gt;测评报告 / 排行榜数据" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#FFFFFF;strokeColor=#8E7CC3;fontSize=13;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="150" width="280" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="redis" value="Redis&lt;br&gt;在线用户状态&lt;br&gt;Bot测试最近报告缓存&lt;br&gt;热门榜单缓存" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#FFFFFF;strokeColor=#8E7CC3;fontSize=13;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="290" width="280" height="95" as="geometry"/>
+        </mxCell>
+        <mxCell id="rabbitmq" value="RabbitMQ&lt;br&gt;异步任务队列&lt;br&gt;DeepSeek 赛后分析&lt;br&gt;对局分析 / 排行榜刷新" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#8E7CC3;fontSize=13;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="425" width="280" height="95" as="geometry"/>
+        </mxCell>
+        <mxCell id="es" value="Elasticsearch&lt;br&gt;社区帖子搜索&lt;br&gt;对局复盘搜索&lt;br&gt;标题 / 正文 / 作者 / 高亮" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#FFFFFF;strokeColor=#8E7CC3;fontSize=13;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="560" width="280" height="95" as="geometry"/>
+        </mxCell>
+        <mxCell id="minio" value="MinIO&lt;br&gt;头像对象存储&lt;br&gt;图片上传与访问" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#FFFFFF;strokeColor=#8E7CC3;fontSize=13;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="695" width="280" height="85" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="docker" value="Docker / 服务器 10.119.6.66&lt;br&gt;部署 Redis、RabbitMQ、Nacos、ES、MinIO 等基础组件" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F7F1FF;strokeColor=#8E7CC3;fontSize=13;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="810" width="260" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e1" value="HTTP / WebSocket" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#B87512;fontSize=12;" edge="1" parent="1" source="browser" target="vue">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" value="HTTP API" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#B87512;fontSize=12;" edge="1" parent="1" source="vue" target="gateway">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3" value="WebSocket 实时对战" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#B87512;fontSize=12;" edge="1" parent="1" source="websocketClient" target="gateway">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" value="服务发现 / 负载路由" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#3D85C6;fontSize=12;" edge="1" parent="1" source="gateway" target="nacos">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e5" value="路由到 backend-service" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#3D85C6;fontSize=12;" edge="1" parent="1" source="gateway" target="backend">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e6" value="Feign 调用" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#3D85C6;fontSize=12;" edge="1" parent="1" source="openfeign" target="matching">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e7" value="Feign 调用" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#3D85C6;fontSize=12;" edge="1" parent="1" source="openfeign" target="botrunning">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e8" value="添加 / 移除匹配玩家" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#6AA84F;fontSize=12;" edge="1" parent="1" source="backend" target="matching">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e9" value="匹配成功后创建对局" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#6AA84F;fontSize=12;" edge="1" parent="1" source="matching" target="backend">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e10" value="提交 Bot 代码与棋盘输入" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#6AA84F;fontSize=12;" edge="1" parent="1" source="backend" target="botrunning">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e11" value="返回 Bot 落子" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#6AA84F;fontSize=12;" edge="1" parent="1" source="botrunning" target="backend">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e12" value="MyBatis Plus" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#8E7CC3;fontSize=12;" edge="1" parent="1" source="backend" target="mysql">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e13" value="在线状态 / 缓存" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#8E7CC3;fontSize=12;" edge="1" parent="1" source="backend" target="redis">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e14" value="异步任务" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#8E7CC3;fontSize=12;" edge="1" parent="1" source="backend" target="rabbitmq">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e15" value="搜索索引" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#8E7CC3;fontSize=12;" edge="1" parent="1" source="backend" target="es">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e16" value="头像上传 / 访问" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#8E7CC3;fontSize=12;" edge="1" parent="1" source="backend" target="minio">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e17" value="消费分析任务" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#8E7CC3;fontSize=12;" edge="1" parent="1" source="rabbitmq" target="deepseek">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e18" value="分析结果入库" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#8E7CC3;fontSize=12;" edge="1" parent="1" source="deepseek" target="mysql">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e19" value="基础组件部署" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#8E7CC3;fontSize=12;dashed=1;" edge="1" parent="1" source="docker" target="nacos">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e20" value="基础组件部署" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#8E7CC3;fontSize=12;dashed=1;" edge="1" parent="1" source="docker" target="redis">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="legend" value="说明：实线表示主要调用链路；虚线表示部署关系。前端通过 Gateway 统一访问后端，微服务通过 Nacos 注册发现，服务间通过 OpenFeign 调用；数据、缓存、搜索、消息队列和对象存储由服务器基础组件支撑。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFDF8;strokeColor=#EADFCC;fontSize=13;fontColor=#5F554C;" vertex="1" parent="1">
+          <mxGeometry x="80" y="900" width="1430" height="50" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
