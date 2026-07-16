@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 112" role="img" aria-label="rank 1 medal">
+  <defs>
+    <linearGradient id="r1" x1="20" y1="8" x2="76" y2="82" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffe68a"/>
+      <stop offset=".5" stop-color="#f6bd33"/>
+      <stop offset="1" stop-color="#c98013"/>
+    </linearGradient>
+    <linearGradient id="b1" x1="24" y1="72" x2="40" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#336dc4"/>
+      <stop offset="1" stop-color="#1f3c86"/>
+    </linearGradient>
+  </defs>
+  <path d="M30 70h16l-9 38-9-13-17 5 19-30Z" fill="url(#b1)"/>
+  <path d="M50 70h16l19 30-17-5-9 13-9-38Z" fill="#d89a32"/>
+  <path d="M48 4l11 9 14-2 6 13 13 6-2 14 9 11-9 11 2 14-13 6-6 13-14-2-11 9-11-9-14 2-6-13-13-6 2-14-9-11 9-11-2-14 13-6 6-13 14 2L48 4Z" fill="url(#r1)" stroke="#fff3ba" stroke-width="3"/>
+  <circle cx="48" cy="55" r="29" fill="#f8c84c" stroke="#b97410" stroke-width="3"/>
+  <text x="48" y="67" text-anchor="middle" font-family="Arial, sans-serif" font-size="38" font-weight="900" fill="#fff1a8" stroke="#ad6c0b" stroke-width="1.3">1</text>
+</svg>

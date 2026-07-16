@@ -38,7 +38,10 @@
                                 <strong v-html="highlightText(record.highlight && record.highlight.black_username, record.a_username)"></strong>
                             </div>
                         </div>
-                        <div class="versus">{{ record.result }}</div>
+                        <div :class="['result-badge', winnerClass(record)]">
+                            <i v-if="winnerClass(record) !== 'draw'" :class="['stone-dot', winnerClass(record) === 'black-win' ? 'black' : 'white']"></i>
+                            <span>{{ winnerLabel(record) }}</span>
+                        </div>
                         <div class="player right">
                             <img :src="record.b_photo" alt="" class="avatar">
                             <div>
@@ -269,6 +272,20 @@ export default {
             }
         };
 
+        const winnerClass = record => {
+            const loser = record && record.record ? record.record.loser : "";
+            if (loser === "A") return "white-win";
+            if (loser === "B") return "black-win";
+            return "draw";
+        };
+
+        const winnerLabel = record => {
+            const type = winnerClass(record);
+            if (type === "black-win") return "黑胜";
+            if (type === "white-win") return "白胜";
+            return "平局";
+        };
+
         pull_page(current_page);
 
         return {
@@ -283,6 +300,8 @@ export default {
             cleanSummary,
             scoreLevel,
             highlightText,
+            winnerClass,
+            winnerLabel,
         };
     }
 }
@@ -329,8 +348,8 @@ h2 {
 
 .record-card {
     display: grid;
-    grid-template-columns: minmax(320px, 0.95fr) minmax(300px, 1.15fr) 148px;
-    gap: 18px;
+    grid-template-columns: minmax(330px, 0.95fr) minmax(330px, 1.15fr) 148px;
+    gap: 22px;
     align-items: center;
     padding: 18px;
     border: 1px solid #e5e7eb;
@@ -352,9 +371,20 @@ h2 {
     gap: 12px;
 }
 
+.player > div {
+    display: grid;
+    align-content: center;
+    gap: 4px;
+    min-height: 68px;
+}
+
 .player.right {
     flex-direction: row-reverse;
     text-align: right;
+}
+
+.player.right > div {
+    justify-items: end;
 }
 
 .avatar {
@@ -406,20 +436,41 @@ h2 {
     font-weight: 900;
 }
 
-.versus {
-    min-width: 58px;
-    padding: 5px 9px;
+.result-badge {
+    min-width: 64px;
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 10px;
     border-radius: 999px;
-    background: #fff1d8;
-    color: #92400e;
+    border: 1px solid #eadcc8;
     text-align: center;
+    font-size: 13px;
     font-weight: 900;
+}
+
+.result-badge.black-win {
+    background: #f8fafc;
+    color: #111827;
+}
+
+.result-badge.white-win {
+    background: #fffaf0;
+    color: #92400e;
+}
+
+.result-badge.draw {
+    background: #f1f5f9;
+    color: #64748b;
 }
 
 .analysis {
     display: grid;
     min-width: 0;
-    padding: 2px 0;
+    padding: 2px 0 2px 22px;
+    border-left: 1px solid #eef2f7;
 }
 
 .record-card :deep(em) {
@@ -488,6 +539,7 @@ h2 {
 }
 
 .record-action-btn {
+    width: 100%;
     min-height: 42px;
     padding: 9px 16px;
     border-radius: 8px;
@@ -510,6 +562,13 @@ h2 {
     .toolbar,
     .record-card {
         grid-template-columns: 1fr;
+    }
+
+    .analysis {
+        padding-left: 0;
+        padding-top: 12px;
+        border-left: 0;
+        border-top: 1px solid #eef2f7;
     }
 }
 </style>

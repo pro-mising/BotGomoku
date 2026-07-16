@@ -3,8 +3,7 @@
         <div class="community-page">
             <header class="community-header">
                 <div>
-                    <div class="header-kicker">BotGomoku 社区</div>
-                    <h2>玩家交流</h2>
+                    <h2>BotGomoku 社区</h2>
                 </div>
                 <button class="btn btn-primary" @click="open_composer">发表帖子</button>
             </header>
@@ -47,13 +46,13 @@
                     <h3 v-html="highlightText(post.highlight_title, post.title)"></h3>
                     <p v-html="highlightText(post.highlight_content, excerpt(post.content))"></p>
                     <div class="post-actions">
-                        <button :class="post.liked ? 'btn btn-primary btn-sm' : 'btn btn-outline-primary btn-sm'" @click.stop="toggle_like(post)">
+                        <button :class="post.liked ? 'btn btn-primary community-action-btn' : 'btn btn-outline-primary community-action-btn'" @click.stop="toggle_like(post)">
                             点赞 {{ post.likes }}
                         </button>
-                        <button class="btn btn-outline-secondary btn-sm" @click.stop="open_post(post.id)">
+                        <button class="btn btn-outline-secondary community-action-btn" @click.stop="open_post(post.id)">
                             评论 {{ post.comment_count }}
                         </button>
-                        <button v-if="post.can_delete" class="btn btn-outline-danger btn-sm" @click.stop="remove_post(post)">
+                        <button v-if="post.can_delete" class="btn btn-outline-danger community-action-btn" @click.stop="remove_post(post)">
                             删除
                         </button>
                     </div>
@@ -341,7 +340,7 @@ export default {
 <style scoped>
 .community-page {
     display: grid;
-    gap: 18px;
+    gap: 12px;
 }
 
 .community-header {
@@ -349,7 +348,7 @@ export default {
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    padding-bottom: 10px;
+    padding-bottom: 8px;
     border-bottom: 1px solid #e5e7eb;
 }
 
@@ -364,6 +363,10 @@ h3 {
     margin: 0;
     color: #0f172a;
     font-weight: 900;
+}
+
+h2 {
+    font-size: 30px;
 }
 
 .community-toolbar {
@@ -430,7 +433,7 @@ h3 {
 }
 
 .post-card {
-    padding: 18px 20px;
+    padding: 14px 18px;
     border: 1px solid #eadcc8;
     border-radius: 8px;
     background: linear-gradient(180deg, #ffffff, #fffdf8);
@@ -509,23 +512,30 @@ h3 {
 
 .tag {
     margin-left: auto;
-    padding: 4px 10px;
-    border-radius: 8px;
+    padding: 6px 13px;
+    border-radius: 999px;
     background: #fff1d8;
     color: #92400e;
-    font-weight: 700;
-    font-size: 12px;
+    font-weight: 900;
+    font-size: 14px;
 }
 
 .post-card h3 {
-    margin: 14px 0 8px;
-    font-size: 20px;
+    margin: 9px 0 4px;
+    font-size: 16px;
+    line-height: 1.35;
 }
 
 p {
+    display: -webkit-box;
+    margin: 0;
+    overflow: hidden;
     color: #475569;
+    font-size: 14px;
     white-space: pre-wrap;
-    line-height: 1.75;
+    line-height: 1.55;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
 }
 
 .post-card :deep(em) {
@@ -540,8 +550,16 @@ p {
 .post-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 12px;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.community-action-btn {
+    min-height: 36px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 900;
 }
 
 .empty-state {

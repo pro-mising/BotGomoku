@@ -51,7 +51,7 @@ setup() {
 
 <style>
 body {
-  background-image: url("@/assets/images/background7.png");
+  background-image: url("@/assets/images/background5.png");
   background-size: cover;
   background-position: center center;
   background-repeat: no-repeat;

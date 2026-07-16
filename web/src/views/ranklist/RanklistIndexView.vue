@@ -45,12 +45,15 @@
                     :key="`${active_type}-${entry.rank}-${entry.user_id}-${entry.bot_id || 0}`"
                     :class="['rank-card', topClass(entry.rank)]"
                 >
-                    <div class="rank-no">{{ entry.rank }}</div>
+                    <div class="rank-no">
+                        <img v-if="medalIcon(entry.rank)" :src="medalIcon(entry.rank)" :alt="`第${entry.rank}名`" class="medal-icon">
+                        <span v-else>{{ entry.rank }}</span>
+                    </div>
                     <img :src="entry.photo" alt="" class="avatar">
                     <div class="rank-main">
                         <div class="name-line">
                             <strong>{{ displayName(entry) }}</strong>
-                            <span>{{ entry.username }}</span>
+                            <span v-if="showOwnerName(entry)">{{ entry.username }}</span>
                         </div>
                         <div class="detail-line">
                             <template v-if="active_type === 'ladder'">
@@ -107,6 +110,9 @@ import ContentField from "@/components/ContentField.vue";
 import { computed, ref } from "vue";
 import { useStore } from "vuex";
 import $ from "jquery";
+import medalOne from "@/assets/images/rank/medal-1.svg";
+import medalTwo from "@/assets/images/rank/medal-2.svg";
+import medalThree from "@/assets/images/rank/medal-3.svg";
 
 export default {
     components: {
@@ -207,6 +213,17 @@ export default {
             return entry.username;
         };
 
+        const showOwnerName = entry => {
+            return active_type.value === "bot" && entry.username && entry.username !== displayName(entry);
+        };
+
+        const medalIcon = rank => {
+            if (rank === 1) return medalOne;
+            if (rank === 2) return medalTwo;
+            if (rank === 3) return medalThree;
+            return "";
+        };
+
         pull_page(current_page);
 
         return {
@@ -222,6 +239,8 @@ export default {
             click_page,
             topClass,
             displayName,
+            showOwnerName,
+            medalIcon,
         };
     }
 }
@@ -310,7 +329,7 @@ h2 {
 .rank-tabs button.active {
     border-color: #d9962b;
     background: linear-gradient(135deg, #fff7e8, #ffffff);
-    box-shadow: 0 12px 28px rgba(146, 64, 14, 0.1);
+    box-shadow: none;
 }
 
 .leader-panel {
@@ -377,18 +396,21 @@ h2 {
 }
 
 .top-one .rank-no {
-    background: #f6c453;
-    color: #3f2a05;
+    background: transparent;
 }
 
 .top-two .rank-no {
-    background: #dbe4ee;
-    color: #334155;
+    background: transparent;
 }
 
 .top-three .rank-no {
-    background: #f2b57c;
-    color: #4a2506;
+    background: transparent;
+}
+
+.medal-icon {
+    width: 44px;
+    height: 52px;
+    object-fit: contain;
 }
 
 .avatar {

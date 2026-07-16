@@ -30,7 +30,7 @@
                 </button>
             </section>
 
-            <div class="error-message">{{ error_message }}</div>
+            <div class="error-message" v-if="error_message">{{ error_message }}</div>
 
             <section class="report" v-if="report">
                 <div class="score-card">
@@ -89,7 +89,7 @@
                     <div class="analysis-pending failed" v-else-if="analysis_report && analysis_report.status === 'failed'">
                         {{ firstAnalysisItem(analysis_report.findings) || "DeepSeek 分析失败，请稍后重试。" }}
                     </div>
-                    <p v-else>{{ report.ai_report }}</p>
+                    <p v-else class="analysis-subtitle">{{ report.ai_report }}</p>
                     <div class="formula">综合评分 = 胜率 40% + 防守能力 20% + 进攻能力 20% + 稳定性 10% + 效率 10%</div>
                     <div class="optimized-code" v-if="optimized_code">
                         <div class="optimized-code-head">
@@ -442,7 +442,7 @@ export default {
 <style scoped>
 .evaluation-page {
     display: grid;
-    gap: 18px;
+    gap: 16px;
 }
 
 .evaluation-header {
@@ -522,7 +522,7 @@ h2 {
 }
 
 .error-message {
-    min-height: 22px;
+    min-height: 0;
     color: #dc3545;
     font-weight: 700;
 }
@@ -607,16 +607,26 @@ h2 {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
 }
 
 .analysis-head h3 {
     margin: 0;
+    font-size: 22px;
+    line-height: 1.25;
 }
 
 .analysis-card p {
     color: #475569;
     line-height: 1.8;
+}
+
+.analysis-subtitle {
+    margin-top: 0;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.55;
+    font-weight: 700;
 }
 
 .analysis-grid {
